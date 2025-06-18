@@ -415,6 +415,12 @@ create policy "Insert members by owner or admin"
         )
       )
       or
+      -- Owner adding themselves during group creation
+      (
+        user_id = auth.uid()
+        and auth.uid() = (select owner_id from groups where id = group_id)
+      )
+      or
       -- User accepting invitation (adding themselves)
       (
         user_id = auth.uid()

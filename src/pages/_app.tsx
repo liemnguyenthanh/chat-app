@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { UserProvider } from "@/contexts/UserContext";
 import { RoomsProvider } from "@/contexts/RoomsContext";
 import { InvitationsProvider } from "@/contexts/InvitationsContext";
-import { MessagesProvider } from "@/contexts/MessagesContext";
+import { MessagesProvider } from "@/contexts/messages/MessagesContext";
 
 export default function App({ Component, pageProps }: AppProps) {
   return (

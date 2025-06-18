@@ -400,14 +400,30 @@ create policy "Select members for member"
 create policy "Insert members by owner or admin"
   on group_members for insert
   with check (
-    user_id <> auth.uid()
-    and (
-      auth.uid() = (select owner_id from groups where id = group_id)
-      or exists (
-        select 1 from group_members gm
-        where gm.group_id = group_members.group_id 
-          and gm.user_id = auth.uid() 
-          and gm.role = 'admin'
+    (
+      -- Owner or admin adding others
+      (
+        user_id <> auth.uid()
+        and (
+          auth.uid() = (select owner_id from groups where id = group_id)
+          or exists (
+            select 1 from group_members gm
+            where gm.group_id = group_members.group_id 
+              and gm.user_id = auth.uid() 
+              and gm.role = 'admin'
+          )
+        )
+      )
+      or
+      -- User accepting invitation (adding themselves)
+      (
+        user_id = auth.uid()
+        and exists (
+          select 1 from invitations 
+          where group_id = group_members.group_id 
+            and invitee_id = auth.uid() 
+            and status = 'accepted'
+        )
       )
     )
     and not exists (

@@ -44,7 +44,7 @@ create table if not exists groups (
 create table if not exists group_members (
   group_id   uuid references groups(id) on delete cascade,
   user_id    uuid references profiles(id) on delete cascade,
-  role       text default 'member' check (role in ('member', 'admin')),
+  role       text default 'member' check (role in ('member', 'admin', 'owner')),
   joined_at  timestamp with time zone default now(),
   primary key(group_id, user_id)
 );
@@ -185,7 +185,7 @@ begin
   insert into group_settings (group_id)
   values (new.id);
   
-  -- Add owner as member
+  -- Add owner as member with 'admin' role (not 'owner')
   insert into group_members (group_id, user_id, role)
   values (new.id, new.owner_id, 'admin');
   
@@ -401,42 +401,30 @@ create policy "Insert members by owner or admin"
   on group_members for insert
   with check (
     (
-      -- Owner or admin adding others
-      (
-        user_id <> auth.uid()
-        and (
-          auth.uid() = (select owner_id from groups where id = group_id)
-          or exists (
-            select 1 from group_members gm
-            where gm.group_id = group_members.group_id 
-              and gm.user_id = auth.uid() 
-              and gm.role = 'admin'
-          )
-        )
-      )
-      or
-      -- Owner adding themselves during group creation
-      (
-        user_id = auth.uid()
-        and auth.uid() = (select owner_id from groups where id = group_id)
-      )
-      or
-      -- User accepting invitation (adding themselves)
-      (
-        user_id = auth.uid()
-        and exists (
-          select 1 from invitations 
-          where group_id = group_members.group_id 
-            and invitee_id = auth.uid() 
-            and status = 'accepted'
-        )
+      -- Owner can add anyone (including themselves during creation)
+      auth.uid() = (select owner_id from groups where id = group_id)
+    )
+    or
+    (
+      -- Admin can add anyone except themselves
+      user_id <> auth.uid()
+      and exists (
+        select 1 from group_members gm
+        where gm.group_id = group_members.group_id 
+          and gm.user_id = auth.uid() 
+          and gm.role = 'admin'
       )
     )
-    and not exists (
-      select 1 from group_bans 
-      where group_bans.group_id = group_members.group_id 
-        and group_bans.user_id = group_members.user_id
-        and (expires_at is null or expires_at > now())
+    or
+    (
+      -- User can add themselves if they have accepted invitation
+      user_id = auth.uid()
+      and exists (
+        select 1 from invitations 
+        where group_id = group_members.group_id 
+          and invitee_id = auth.uid() 
+          and status = 'accepted'
+      )
     )
   );
 

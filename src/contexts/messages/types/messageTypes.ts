@@ -45,6 +45,7 @@ export interface MessagesContextType {
   loading: boolean;
   error: string | null;
   currentGroupId: string | null;
+  hasMore: boolean;
   typingUsers: TypingUser[];
   sendingMessageId: string | null;
   failedMessages: Set<string>;

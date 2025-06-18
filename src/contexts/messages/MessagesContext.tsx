@@ -54,6 +54,7 @@ export const MessagesProvider: React.FC<MessagesProviderProps> = ({ children }) 
     loading: messagesHook.loading,
     error: messagesHook.error,
     currentGroupId: messagesHook.currentGroupId,
+    hasMore: messagesHook.hasMoreMessages,
     sendingMessageId: messagesHook.sendingMessageId,
     failedMessages: messagesHook.failedMessages,
     sendMessage: messagesHook.sendMessage,

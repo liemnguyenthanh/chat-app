@@ -9,7 +9,7 @@ import { useMessagesContext, Message } from '@/contexts/messages/MessagesContext
 import { format } from 'date-fns';
 
 // Import sub-components
-import { MessageItem } from './conversation/components/MessageItem';
+import { MessageList } from './conversation/components/MessageList';
 import { TypingIndicator } from './conversation/components/TypingIndicator';
 import { MessageInput } from './conversation/components/MessageInput';
 import { ConnectionStatus } from './conversation/components/ConnectionStatus';
@@ -24,6 +24,7 @@ const Conversation: React.FC<ConversationProps> = ({ roomId, roomName }) => {
   const {
     messages,
     loading,
+    hasMore,
     typingUsers,
     failedMessages,
     sendingMessageId,
@@ -34,6 +35,7 @@ const Conversation: React.FC<ConversationProps> = ({ roomId, roomName }) => {
     retryFailedMessage,
     removeFailedMessage,
     loadMessages,
+    loadMoreMessages,
     startTyping,
   } = useMessagesContext();
 
@@ -45,9 +47,6 @@ const Conversation: React.FC<ConversationProps> = ({ roomId, roomName }) => {
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   const [lastMessageTime, setLastMessageTime] = useState<string>('');
   const [isConnected, setIsConnected] = useState(true);
-
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   // Monitor connection status
   useEffect(() => {
@@ -85,22 +84,9 @@ const Conversation: React.FC<ConversationProps> = ({ roomId, roomName }) => {
     }
   }, [messages]);
 
-  // Auto-scroll to bottom
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
 
-  useEffect(scrollToBottom, [messages]);
 
-  // Avatar display logic
-  const shouldShowAvatar = (currentMessage: Message, index: number) => {
-    if (index === 0) return true;
-    const previousMessage = messages[index - 1];
-    return (
-      previousMessage.author_id !== currentMessage.author_id ||
-      new Date(currentMessage.created_at).getTime() - new Date(previousMessage.created_at).getTime() > 5 * 60 * 1000
-    );
-  };
+
 
   // Handlers
   const handleSendMessage = async () => {
@@ -159,6 +145,12 @@ const Conversation: React.FC<ConversationProps> = ({ roomId, roomName }) => {
     startTyping(roomId);
   };
 
+  const handleLoadMore = () => {
+    if (hasMore && !loading) {
+      loadMoreMessages();
+    }
+  };
+
   return (
     <Box sx={{ 
       height: '100%', 
@@ -173,40 +165,23 @@ const Conversation: React.FC<ConversationProps> = ({ roomId, roomName }) => {
       />
 
       {/* Messages List */}
-      <Box
-        ref={messagesContainerRef}
-        sx={{
-          flexGrow: 1,
-          overflowY: "auto",
-          padding: 2,
-          display: "flex",
-          flexDirection: "column",
-          gap: 1,
-        }}
-      >
-        {/* Messages */}
-        {messages.map((message, index) => (
-          <MessageItem
-            key={message.id}
-            message={message}
-            showAvatar={shouldShowAvatar(message, index)}
-            isEditing={editingMessageId === message.id}
-            editingContent={editingContent}
-            failedMessages={failedMessages}
-            sendingMessageId={sendingMessageId}
-            onEditingContentChange={setEditingContent}
-            onEditMessage={handleEditMessage}
-            onCancelEdit={handleCancelEdit}
-            onMessageMenu={handleMessageMenu}
-            onReaction={handleReaction}
-            onRetryFailedMessage={retryFailedMessage}
-            onRemoveFailedMessage={removeFailedMessage}
-          />
-        ))}
-
-        {/* Auto-scroll anchor */}
-        <div ref={messagesEndRef} />
-      </Box>
+      <MessageList
+        messages={messages}
+        loading={loading}
+        hasMore={hasMore}
+        editingMessageId={editingMessageId}
+        editingContent={editingContent}
+        failedMessages={failedMessages}
+        sendingMessageId={sendingMessageId}
+        onEditingContentChange={setEditingContent}
+        onEditMessage={handleEditMessage}
+        onCancelEdit={handleCancelEdit}
+        onMessageMenu={handleMessageMenu}
+        onReaction={handleReaction}
+        onRetryFailedMessage={retryFailedMessage}
+        onRemoveFailedMessage={removeFailedMessage}
+        onLoadMore={handleLoadMore}
+      />
 
       {/* Typing Indicator */}
       <TypingIndicator typingUsers={typingUsers} />

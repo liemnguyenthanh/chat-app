@@ -1,14 +1,29 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { useSupabaseClient, useUser } from '@supabase/auth-helpers-react';
-import { Room } from '@/components/RoomList';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+  useCallback,
+} from "react";
+import { useSupabaseClient, useUser } from "@supabase/auth-helpers-react";
+import { Room } from "@/components/RoomList";
 
 interface RoomsContextType {
   rooms: Room[];
   loading: boolean;
   error: string | null;
   refreshRooms: () => Promise<void>;
-  createRoom: (name: string, description?: string, isPrivate?: boolean) => Promise<Room | null>;
-  updateRoomLastMessage: (roomId: string, lastMessage: string, timestamp: string) => void;
+  createRoom: (
+    name: string,
+    description?: string,
+    isPrivate?: boolean
+  ) => Promise<Room | null>;
+  updateRoomLastMessage: (
+    roomId: string,
+    lastMessage: string,
+    timestamp: string
+  ) => void;
 }
 
 const RoomsContext = createContext<RoomsContextType | undefined>(undefined);
@@ -16,7 +31,7 @@ const RoomsContext = createContext<RoomsContextType | undefined>(undefined);
 export const useRoomsContext = () => {
   const context = useContext(RoomsContext);
   if (context === undefined) {
-    throw new Error('useRoomsContext must be used within a RoomsProvider');
+    throw new Error("useRoomsContext must be used within a RoomsProvider");
   }
   return context;
 };
@@ -41,11 +56,12 @@ export const RoomsProvider: React.FC<RoomsProviderProps> = ({ children }) => {
 
     try {
       setError(null);
-      
+
       // Fetch groups where user is a member
       const { data: groupsData, error: groupsError } = await supabase
-        .from('groups')
-        .select(`
+        .from("groups")
+        .select(
+          `
           id,
           name,
           description,
@@ -55,9 +71,10 @@ export const RoomsProvider: React.FC<RoomsProviderProps> = ({ children }) => {
           group_members!inner(
             user_id
           )
-        `)
-        .eq('group_members.user_id', user.id)
-        .order('updated_at', { ascending: false });
+        `
+        )
+        .eq("group_members.user_id", user.id)
+        .order("updated_at", { ascending: false });
 
       if (groupsError) {
         throw groupsError;
@@ -68,24 +85,24 @@ export const RoomsProvider: React.FC<RoomsProviderProps> = ({ children }) => {
         (groupsData || []).map(async (group) => {
           // Get member count
           const { count: memberCount } = await supabase
-            .from('group_members')
-            .select('*', { count: 'exact', head: true })
-            .eq('group_id', group.id);
+            .from("group_members")
+            .select("*", { count: "exact", head: true })
+            .eq("group_id", group.id);
 
           // Get last message
           const { data: lastMessageData } = await supabase
-            .from('messages')
-            .select('content, created_at')
-            .eq('group_id', group.id)
-            .eq('deleted', false)
-            .order('created_at', { ascending: false })
+            .from("messages")
+            .select("content, created_at")
+            .eq("group_id", group.id)
+            .eq("deleted", false)
+            .order("created_at", { ascending: false })
             .limit(1)
             .single();
 
           return {
             id: group.id,
             name: group.name,
-            lastMessage: lastMessageData?.content || 'No messages yet',
+            lastMessage: lastMessageData?.content || "No messages yet",
             unreadCount: 0, // TODO: Implement unread count logic
             isPrivate: group.is_private,
             memberCount: memberCount || 0,
@@ -96,8 +113,8 @@ export const RoomsProvider: React.FC<RoomsProviderProps> = ({ children }) => {
 
       setRooms(transformedRooms);
     } catch (err) {
-      console.error('Error fetching rooms:', err);
-      setError('Failed to load rooms');
+      console.error("Error fetching rooms:", err);
+      setError("Failed to load rooms");
     } finally {
       setLoading(false);
     }
@@ -107,104 +124,113 @@ export const RoomsProvider: React.FC<RoomsProviderProps> = ({ children }) => {
     await fetchRooms();
   }, [fetchRooms]);
 
-  const createRoom = useCallback(async (
-    name: string, 
-    description?: string, 
-    isPrivate: boolean = false
-  ): Promise<Room | null> => {
-    if (!user) {
-      throw new Error('User must be authenticated to create a room');
-    }
-
-    try {
-      // Create the group in the database
-      const { data: group, error } = await supabase
-        .from('groups')
-        .insert({
-          name: name.trim(),
-          owner_id: user.id,
-          is_private: isPrivate,
-          description: description?.trim() || null
-        })
-        .select()
-        .single();
-
-      if (error) {
-        throw error;
+  const createRoom = useCallback(
+    async (
+      name: string,
+      description?: string,
+      isPrivate: boolean = false
+    ): Promise<Room | null> => {
+      if (!user) {
+        throw new Error("User must be authenticated to create a room");
       }
 
-      // Note: The owner is automatically added as a member by the database trigger
+      try {
+        // Create the group in the database
+        const { data: group, error } = await supabase
+          .from("groups")
+          .insert({
+            name: name.trim(),
+            owner_id: user.id,
+            is_private: isPrivate,
+            description: description?.trim() || null,
+          })
+          .select()
+          .single();
 
-      // Refresh rooms to include the new one
-      await refreshRooms();
+        if (error) {
+          throw error;
+        }
 
-      // Return the new room in the expected format
-      return {
-        id: group.id,
-        name: group.name,
-        lastMessage: 'No messages yet',
-        unreadCount: 0,
-        isPrivate: group.is_private,
-        memberCount: 1,
-        lastActivity: group.created_at,
-      };
-    } catch (err) {
-      console.error('Error creating room:', err);
-      throw err;
-    }
-  }, [user, supabase, refreshRooms]);
+        // Note: The owner is automatically added as a member by the database trigger
+
+        // Refresh rooms to include the new one
+        await refreshRooms();
+
+        // Return the new room in the expected format
+        return {
+          id: group.id,
+          name: group.name,
+          lastMessage: "No messages yet",
+          unreadCount: 0,
+          isPrivate: group.is_private,
+          memberCount: 1,
+          lastActivity: group.created_at,
+        };
+      } catch (err) {
+        console.error("Error creating room:", err);
+        throw err;
+      }
+    },
+    [user, supabase, refreshRooms]
+  );
 
   // Function to update room's last message in real-time
-  const updateRoomLastMessage = useCallback((roomId: string, lastMessage: string, timestamp: string) => {
-    setRooms(prev => 
-      prev.map(room => 
-        room.id === roomId 
-          ? { 
-              ...room, 
-              lastMessage: lastMessage.length > 50 ? lastMessage.substring(0, 50) + '...' : lastMessage,
-              lastActivity: timestamp 
-            }
-          : room
-      ).sort((a, b) => new Date(b.lastActivity || 0).getTime() - new Date(a.lastActivity || 0).getTime())
-    );
-  }, []);
+  const updateRoomLastMessage = useCallback(
+    (roomId: string, lastMessage: string, timestamp: string) => {
+      setRooms((prev) =>
+        prev
+          .map((room) =>
+            room.id === roomId
+              ? {
+                  ...room,
+                  lastMessage:
+                    lastMessage.length > 50
+                      ? lastMessage.substring(0, 50) + "..."
+                      : lastMessage,
+                  lastActivity: timestamp,
+                }
+              : room
+          )
+          .sort(
+            (a, b) =>
+              new Date(b.lastActivity || 0).getTime() -
+              new Date(a.lastActivity || 0).getTime()
+          )
+      );
+    },
+    []
+  );
 
   // Set up real-time subscription for new messages to update room list
   useEffect(() => {
     if (!user) {
-      console.log('👤 No user, skipping room updates subscription');
       return;
     }
 
-    console.log('🏠 Setting up room updates subscription');
-    
     const channel = supabase
-      .channel('room-updates')
+      .channel("room-updates")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages'
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
         },
         async (payload) => {
-          console.log('📨 New message for room list update:', payload.new);
           try {
             // Check if this message belongs to a room the user is in
             const { data: membership, error } = await supabase
-              .from('group_members')
-              .select('group_id')
-              .eq('group_id', payload.new.group_id)
-              .eq('user_id', user.id)
+              .from("group_members")
+              .select("group_id")
+              .eq("group_id", payload.new.group_id)
+              .eq("user_id", user.id)
               .single();
 
             if (error) {
-              console.error('Error checking membership:', error);
               return;
             }
 
             if (membership && payload.new.content) {
-              console.log('✅ Updating room last message for:', payload.new.group_id);
               updateRoomLastMessage(
                 payload.new.group_id,
                 payload.new.content,
@@ -212,38 +238,35 @@ export const RoomsProvider: React.FC<RoomsProviderProps> = ({ children }) => {
               );
             }
           } catch (err) {
-            console.error('Error processing room message update:', err);
+            console.error("Error processing room message update:", err);
           }
         }
       )
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'groups'
+          event: "INSERT",
+          schema: "public",
+          table: "groups",
         },
         (payload) => {
-          console.log('🏠 New group created, refreshing room list:', payload.new);
           // Refresh rooms when new groups are created
           refreshRooms();
         }
       )
       .subscribe((status) => {
-        console.log('🏠 Room updates subscription status:', status);
-        if (status === 'SUBSCRIBED') {
-          console.log('✅ Room updates subscription successful');
-        } else if (status === 'CHANNEL_ERROR') {
-          console.error('❌ Room updates subscription error');
-        } else if (status === 'TIMED_OUT') {
-          console.error('⏰ Room updates subscription timed out');
-        } else if (status === 'CLOSED') {
-          console.log('🔒 Room updates subscription closed');
+        if (status === "SUBSCRIBED") {
+          console.log("✅ Room updates subscription successful");
+        } else if (status === "CHANNEL_ERROR") {
+          console.error("❌ Room updates subscription error");
+        } else if (status === "TIMED_OUT") {
+          console.error("⏰ Room updates subscription timed out");
+        } else if (status === "CLOSED") {
+          console.log("🔒 Room updates subscription closed");
         }
       });
 
     return () => {
-      console.log('🧹 Cleaning up room updates subscription');
       supabase.removeChannel(channel);
     };
   }, [user, supabase, updateRoomLastMessage, refreshRooms]);
@@ -262,8 +285,6 @@ export const RoomsProvider: React.FC<RoomsProviderProps> = ({ children }) => {
   };
 
   return (
-    <RoomsContext.Provider value={value}>
-      {children}
-    </RoomsContext.Provider>
+    <RoomsContext.Provider value={value}>{children}</RoomsContext.Provider>
   );
 };

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useUser } from '@supabase/auth-helpers-react';
 import {
   Box,
@@ -9,6 +9,7 @@ import {
   IconButton,
   CircularProgress,
   Tooltip,
+  Fade,
 } from '@mui/material';
 import {
   MoreVert as MoreVertIcon,
@@ -48,6 +49,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   onRemoveFailedMessage,
 }) => {
   const user = useUser();
+  const [showQuickReactions, setShowQuickReactions] = useState(false);
   const isOwnMessage = message.author_id === user?.id;
 
   const formatTime = (timestamp: string) => {
@@ -70,6 +72,25 @@ export const MessageItem: React.FC<MessageItemProps> = ({
     return authorId === user?.id ? 'white' : 'text.primary';
   };
 
+  const getBorderRadius = (authorId: string, showAvatar: boolean) => {
+    const baseRadius = 18;
+    const tightRadius = 4;
+    
+    if (authorId === user?.id) {
+      // Own messages: rounded on left, tight on bottom-right when grouped
+      return showAvatar 
+        ? `${baseRadius}px ${baseRadius}px ${baseRadius}px ${baseRadius}px`
+        : `${baseRadius}px ${baseRadius}px ${tightRadius}px ${baseRadius}px`;
+    } else {
+      // Other messages: rounded on right, tight on bottom-left when grouped  
+      return showAvatar 
+        ? `${baseRadius}px ${baseRadius}px ${baseRadius}px ${baseRadius}px`
+        : `${baseRadius}px ${baseRadius}px ${baseRadius}px ${tightRadius}px`;
+    }
+  };
+
+  const quickReactionEmojis = ['👍', '❤️', '😂', '😮', '😢', '😡'];
+
   return (
     <Box
       sx={{
@@ -77,8 +98,11 @@ export const MessageItem: React.FC<MessageItemProps> = ({
         justifyContent: getMessageAlignment(message.author_id),
         alignItems: 'flex-end',
         gap: 1,
-        mb: showAvatar ? 2 : 0.5,
+        mb: showAvatar ? 2 : 0.25, // Tighter spacing for grouped messages
+        position: 'relative',
       }}
+      onMouseEnter={() => setShowQuickReactions(true)}
+      onMouseLeave={() => setShowQuickReactions(false)}
     >
       {!isOwnMessage && showAvatar && (
         <Avatar sx={{ width: 32, height: 32, bgcolor: "secondary.main" }}>
@@ -89,7 +113,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
         <Box sx={{ width: 32 }} />
       )}
 
-      <Box sx={{ maxWidth: '70%', minWidth: '100px' }}>
+      <Box sx={{ maxWidth: '70%', minWidth: '100px', position: 'relative' }}>
         {!isOwnMessage && showAvatar && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5, ml: 1 }}>
             <Typography variant="caption" fontWeight={600}>
@@ -103,17 +127,22 @@ export const MessageItem: React.FC<MessageItemProps> = ({
 
         <Paper
           sx={{
-            p: 2,
+            p: 1.5,
             bgcolor: getMessageColor(message.author_id),
             color: getTextColor(message.author_id),
-            borderRadius: isOwnMessage ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+            borderRadius: getBorderRadius(message.author_id, showAvatar),
             position: 'relative',
             border: message.failed ? '2px solid' : 'none',
             borderColor: message.failed ? 'error.main' : 'transparent',
             opacity: message.sending ? 0.7 : 1,
+            transition: 'all 0.2s ease-in-out',
             ...(message.sending && {
               animation: 'pulse 2s infinite'
-            })
+            }),
+            '&:hover': {
+              transform: 'translateY(-1px)',
+              boxShadow: (theme) => theme.shadows[2],
+            }
           }}
         >
           {isEditing ? (
@@ -217,50 +246,88 @@ export const MessageItem: React.FC<MessageItemProps> = ({
               )}
             </>
           )}
-          
-          {/* Reactions */}
-          {message.reactions && message.reactions.length > 0 && (
-            <Box sx={{ display: 'flex', gap: 0.5, mt: 1, flexWrap: 'wrap' }}>
-              {message.reactions.map((reaction) => (
-                <Chip
-                  key={reaction.emoji}
-                  label={`${reaction.emoji} ${reaction.count}`}
-                  size="small"
-                  variant={reaction.users.includes(user?.id || '') ? 'filled' : 'outlined'}
-                  onClick={() => onReaction(message.id, reaction.emoji)}
-                  sx={{ height: 24, fontSize: '0.75rem' }}
-                />
-              ))}
-            </Box>
-          )}
-          
-          {/* Quick reactions */}
+        </Paper>
+        
+        {/* Existing Reactions */}
+        {message.reactions && message.reactions.length > 0 && (
           <Box sx={{ 
             display: 'flex', 
             gap: 0.5, 
-            mt: 1, 
-            opacity: 0.7,
-            '&:hover': { opacity: 1 }
+            mt: 0.5, 
+            flexWrap: 'wrap',
+            justifyContent: isOwnMessage ? 'flex-end' : 'flex-start'
           }}>
-            {['👍', '❤️', '😂', '😮', '😢', '😡'].map((emoji) => (
+            {message.reactions.map((reaction) => (
+              <Chip
+                key={reaction.emoji}
+                label={`${reaction.emoji} ${reaction.count}`}
+                size="small"
+                variant={reaction.users.includes(user?.id || '') ? 'filled' : 'outlined'}
+                onClick={() => onReaction(message.id, reaction.emoji)}
+                sx={{ 
+                  height: 22, 
+                  fontSize: '0.7rem',
+                  '& .MuiChip-label': { px: 1 },
+                  transition: 'all 0.2s ease-in-out',
+                  '&:hover': {
+                    transform: 'scale(1.1)',
+                    boxShadow: (theme) => theme.shadows[2],
+                  }
+                }}
+              />
+            ))}
+          </Box>
+        )}
+
+        {/* Show timestamp for own messages at bottom */}
+        {isOwnMessage && showAvatar && (
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5, mr: 1 }}>
+            <Typography variant="caption" color="text.secondary">
+              {formatTime(message.created_at)}
+            </Typography>
+          </Box>
+        )}
+        
+        {/* Quick Reactions (show on hover) */}
+        <Fade in={showQuickReactions && !isEditing}>
+          <Box sx={{ 
+            position: 'absolute',
+            top: -16,
+            [isOwnMessage ? 'right' : 'left']: 8,
+            display: 'flex',
+            gap: 0.25,
+            bgcolor: 'background.paper',
+            borderRadius: '20px',
+            p: 0.5,
+            boxShadow: (theme) => theme.shadows[8],
+            border: '1px solid',
+            borderColor: 'divider',
+            zIndex: 10,
+          }}>
+            {quickReactionEmojis.map((emoji) => (
               <IconButton
                 key={emoji}
                 size="small"
                 onClick={() => onReaction(message.id, emoji)}
-                sx={{ fontSize: '0.8rem', p: 0.25 }}
+                sx={{ 
+                  fontSize: '0.9rem', 
+                  p: 0.5,
+                  width: 28,
+                  height: 28,
+                  transition: 'transform 0.1s ease-in-out',
+                  '&:hover': {
+                    transform: 'scale(1.3)',
+                    bgcolor: 'action.hover',
+                  }
+                }}
               >
                 {emoji}
               </IconButton>
             ))}
           </Box>
-        </Paper>
+        </Fade>
       </Box>
       
-      {isOwnMessage && showAvatar && (
-        <Avatar sx={{ width: 32, height: 32, bgcolor: "primary.main" }}>
-          {message.author?.username?.charAt(0).toUpperCase() || '?'}
-        </Avatar>
-      )}
       {isOwnMessage && !showAvatar && (
         <Box sx={{ width: 32 }} />
       )}

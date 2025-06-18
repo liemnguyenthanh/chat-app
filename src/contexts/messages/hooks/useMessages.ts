@@ -234,6 +234,7 @@ export const useMessages = (messageService: MessageService, user: User | null) =
     loading,
     error,
     currentGroupId,
+    hasMoreMessages,
     sendingMessageId,
     failedMessages,
     

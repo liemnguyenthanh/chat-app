@@ -22,12 +22,10 @@ export const useRealtime = ({
 }: UseRealtimeProps) => {
   // Set up real-time subscription for messages
   useEffect(() => {
-    if (!user || !currentGroupId) {
-      console.log("👤 No user or group ID, skipping realtime subscription");
-      return;
-    }
+    if (!user || !currentGroupId) return;
 
     const channelName = `group:${currentGroupId}`;
+    
     const channel = supabase
       .channel(channelName)
       .on(
@@ -39,12 +37,15 @@ export const useRealtime = ({
           filter: `group_id=eq.${currentGroupId}`,
         },
         async (payload) => {
-          console.log("New message received:", payload.new);
+          // For messages from current user, try to replace optimistic message first
           if (payload.new.author_id === user.id) {
-            // Replace temporary message with real one
+            let optimisticMessageReplaced = false;
+            
             setMessages((prev) => {
               const updated = prev.map((msg) => {
-                if (msg.sending && msg.content === payload.new.content) {
+                // Match by content and sending state for optimistic updates
+                if (msg.sending && msg.content === payload.new.content && msg.author_id === user.id) {
+                  optimisticMessageReplaced = true;
                   return {
                     ...msg,
                     id: payload.new.id,
@@ -56,61 +57,31 @@ export const useRealtime = ({
                 }
                 return msg;
               });
-
-              // If no optimistic message found, add normally
-              if (updated.every((msg) => msg.id !== payload.new.id)) {
-                const newMessage: Message = {
-                  id: payload.new.id,
-                  group_id: payload.new.group_id,
-                  author_id: payload.new.author_id,
-                  content: payload.new.content,
-                  data: payload.new.data,
-                  reply_to: payload.new.reply_to,
-                  thread_id: payload.new.thread_id,
-                  message_type: payload.new.message_type,
-                  created_at: payload.new.created_at,
-                  updated_at: payload.new.updated_at,
-                  deleted: payload.new.deleted,
-                  deleted_at: payload.new.deleted_at,
-                  author: {
-                    id: user.id,
-                    username:
-                      user.user_metadata?.username || user.email || "Unknown",
-                    full_name: user.user_metadata?.full_name,
-                    avatar_url: user.user_metadata?.avatar_url,
-                  },
-                  reactions: [],
-                };
-                return [...updated, newMessage];
-              }
-
               return updated;
             });
 
-            // Clear sending state
-            setSendingMessageId(null);
-            return;
+            // Clear sending state if we replaced an optimistic message
+            if (optimisticMessageReplaced) {
+              setSendingMessageId(null);
+              return; // Exit early, no need to fetch
+            }
           }
 
-          // For messages from other users, always fetch and add
-          if (payload.new.author_id !== user.id) {
-            let shouldFetch = true;
-            setMessages((prev) => {
-              if (prev.some((m) => m.id === payload.new.id)) {
-                console.log(
-                  "⚠️ Message from other user already exists, skipping"
-                );
-                shouldFetch = false;
-              }
+          // For all other cases, check for duplicates and fetch complete data
+          let shouldFetch = true;
+          setMessages((prev) => {
+            const exists = prev.some((msg) => msg.id === payload.new.id);
+            if (exists) {
+              shouldFetch = false;
               return prev;
-            });
+            }
+            return prev;
+          });
 
-            if (!shouldFetch) return;
-
+          if (shouldFetch) {
             try {
-              console.log("📡 Fetching complete message data...");
               // Fetch complete message with author info
-              const { data: newMessage, error } = await supabase
+              const { data: messageData, error } = await supabase
                 .from("messages")
                 .select(
                   `
@@ -134,40 +105,48 @@ export const useRealtime = ({
                 .single();
 
               if (error) {
-                console.error("❌ Error fetching complete message:", error);
+                console.error("Error fetching complete message:", error);
                 return;
               }
 
-              if (newMessage) {
-                console.log(
-                  "📝 Fetched complete message from other user:",
-                  newMessage
-                );
-
-                // Add empty reactions array (will be populated via RPC later)
-                const messageWithEmptyReactions = {
-                  ...newMessage,
+              if (messageData) {
+                const newMessage: Message = {
+                  id: messageData.id,
+                  group_id: messageData.group_id,
+                  author_id: messageData.author_id,
+                  content: messageData.content,
+                  data: messageData.data,
+                  reply_to: messageData.reply_to,
+                  thread_id: messageData.thread_id,
+                  message_type: messageData.message_type,
+                  created_at: messageData.created_at,
+                  updated_at: messageData.updated_at,
+                  deleted: messageData.deleted,
+                  deleted_at: messageData.deleted_at,
+                  author: {
+                    id: messageData.author.id,
+                    username: messageData.author.username,
+                    full_name: messageData.author.full_name,
+                    avatar_url: messageData.author.avatar_url,
+                  },
                   reactions: [],
                 };
 
-                // Add the message from other user
                 setMessages((prev) => {
-                  // Final duplicate check
-                  if (prev.some((m) => m.id === messageWithEmptyReactions.id)) {
-                    console.log("⚠️ Final check: message already exists");
+                  // Final duplicate check before adding
+                  if (prev.some((m) => m.id === newMessage.id)) {
                     return prev;
                   }
-                  console.log(
-                    "✅ Adding message from other user to UI via WebSocket"
-                  );
-                  return [...prev, messageWithEmptyReactions];
+                  return [...prev, newMessage];
                 });
+
+                // Clear sending state for own messages (backup)
+                if (payload.new.author_id === user.id) {
+                  setSendingMessageId(null);
+                }
               }
             } catch (error) {
-              console.error(
-                "❌ Error processing WebSocket message from other user:",
-                error
-              );
+              console.error("Error processing new message:", error);
             }
           }
         }
@@ -181,7 +160,6 @@ export const useRealtime = ({
           filter: `group_id=eq.${currentGroupId}`,
         },
         (payload) => {
-          console.log("✏️ Message updated via WebSocket:", payload.new);
           setMessages((prev) =>
             prev.map((msg) =>
               msg.id === payload.new.id ? { ...msg, ...payload.new } : msg
@@ -189,56 +167,94 @@ export const useRealtime = ({
           );
         }
       )
-      // Note: Reactions subscription removed for performance
-      // .on(
-      //   'postgres_changes',
-      //   {
-      //     event: '*',
-      //     schema: 'public',
-      //     table: 'reactions'
-      //   },
-      //   () => {
-      //     console.log('😀 Reactions changed via WebSocket - use dedicated RPC for reactions');
-      //   }
-      // )
-      .subscribe((status) => {
-        console.log("📡 WebSocket Subscription status changed:", status);
-        if (status === "SUBSCRIBED") {
-          console.log(
-            `✅ WebSocket connected! Successfully subscribed to realtime updates for room: ${currentGroupId}`
-          );
-          console.log(
-            "🔍 You should now see WebSocket activity in Network tab when messages are sent/received"
-          );
-        } else if (status === "CHANNEL_ERROR") {
-          console.error(
-            "❌ WebSocket subscription error for room:",
-            currentGroupId
-          );
-        } else if (status === "TIMED_OUT") {
-          console.error(
-            "⏰ WebSocket subscription timed out for room:",
-            currentGroupId
-          );
-        } else if (status === "CLOSED") {
-          console.log(
-            "🔒 WebSocket subscription closed for room:",
-            currentGroupId
-          );
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public", 
+          table: "reactions",
+        },
+        async (payload) => {
+          // Refetch reactions for the affected message
+          if ((payload.new as any)?.message_id || (payload.old as any)?.message_id) {
+            const messageId = (payload.new as any)?.message_id || (payload.old as any)?.message_id;
+            
+            try {
+              const { data: reactions, error } = await supabase
+                .from('reactions')
+                .select('emoji, user_id, profiles!user_id(username)')
+                .eq('message_id', messageId);
+                
+              if (!error && reactions) {
+                // Group reactions by emoji
+                const groupedReactions = reactions.reduce((acc: any, reaction: any) => {
+                  const emoji = reaction.emoji;
+                  if (!acc[emoji]) {
+                    acc[emoji] = { emoji, count: 0, users: [] };
+                  }
+                  acc[emoji].count++;
+                  acc[emoji].users.push(reaction.user_id);
+                  return acc;
+                }, {});
+                
+                // Update message reactions
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === messageId 
+                      ? { ...msg, reactions: Object.values(groupedReactions) }
+                      : msg
+                  )
+                );
+              }
+            } catch (error) {
+              console.error('Error fetching reactions:', error);
+            }
+          }
         }
-      });
+      )
+      .subscribe();
 
     return () => {
-      console.log(
-        `🧹 Cleaning up WebSocket subscription for room: ${currentGroupId}`
-      );
       supabase.removeChannel(channel);
     };
   }, [user, currentGroupId, supabase, setMessages, setSendingMessageId]);
 
-  // Set up real-time subscription for typing indicators
+  // Set up real-time subscription for typing indicators  
   useEffect(() => {
     if (!user || !currentGroupId) return;
+
+    const fetchTypingUsers = async () => {
+      try {
+        const { data: typingData, error } = await supabase
+          .from("typing_indicators")
+          .select(
+            `
+            user_id,
+            profiles!user_id(
+              username
+            )
+          `
+          )
+          .eq("group_id", currentGroupId)
+          .neq("user_id", user.id) // Exclude current user
+          .gt("expires_at", new Date().toISOString());
+
+        if (error) return;
+
+        if (typingData) {
+          const users: TypingUser[] = typingData
+            .filter((item) => item.profiles)
+            .map((item) => ({
+              user_id: item.user_id,
+              username: (item.profiles as any).username,
+            }));
+          
+          updateTypingUsers(users);
+        }
+      } catch (error) {
+        // Silent fail for typing indicators
+      }
+    };
 
     const channel = supabase
       .channel(`typing-${currentGroupId}`)
@@ -250,34 +266,21 @@ export const useRealtime = ({
           table: "typing_indicators",
           filter: `group_id=eq.${currentGroupId}`,
         },
-        async () => {
-          // Fetch current typing users
-          const { data: typingData } = await supabase
-            .from("typing_indicators")
-            .select(
-              `
-              user_id,
-              profiles!user_id(
-                username
-              )
-            `
-            )
-            .eq("group_id", currentGroupId)
-            .neq("user_id", user.id) // Exclude current user
-            .gt("expires_at", new Date().toISOString());
-
-          if (typingData) {
-            const users: TypingUser[] = typingData
-              .filter((item) => item.profiles)
-              .map((item) => ({
-                user_id: item.user_id,
-                username: (item.profiles as any).username,
-              }));
-            updateTypingUsers(users);
+        (payload) => {
+          // Only fetch if it's not the current user's change
+          if (
+            (payload.eventType === 'INSERT' && payload.new.user_id !== user.id) ||
+            (payload.eventType === 'DELETE' && payload.old.user_id !== user.id) ||
+            (payload.eventType === 'UPDATE')
+          ) {
+            fetchTypingUsers();
           }
         }
       )
       .subscribe();
+
+    // Initial fetch
+    fetchTypingUsers();
 
     return () => {
       supabase.removeChannel(channel);

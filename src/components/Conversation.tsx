@@ -37,6 +37,7 @@ const Conversation: React.FC<ConversationProps> = ({ roomId, roomName }) => {
     loadMessages,
     loadMoreMessages,
     startTyping,
+    stopTyping,
   } = useMessagesContext();
 
   // State for UI interactions
@@ -85,12 +86,12 @@ const Conversation: React.FC<ConversationProps> = ({ roomId, roomName }) => {
   }, [messages]);
 
 
-
-
-
   // Handlers
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !roomId) return;
+    
+    // Stop typing indicator immediately when sending message
+    stopTyping(roomId);
     
     await sendMessage(roomId, newMessage.trim());
     setNewMessage('');
@@ -142,7 +143,9 @@ const Conversation: React.FC<ConversationProps> = ({ roomId, roomName }) => {
   };
 
   const handleTyping = () => {
-    startTyping(roomId);
+    if (roomId) {
+      startTyping(roomId);
+    }
   };
 
   const handleLoadMore = () => {

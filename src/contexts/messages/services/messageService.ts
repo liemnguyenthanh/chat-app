@@ -36,13 +36,41 @@ export class MessageService {
 
       if (error) throw error;
 
-      // Add empty reactions array to each message (will be populated via RPC later)
-      const messagesWithEmptyReactions = (data || []).map(message => ({
+      if (!data || data.length === 0) return [];
+
+      // Fetch reactions for all messages in this batch
+      const messageIds = data.map(msg => msg.id);
+      const { data: reactionsData, error: reactionsError } = await this.supabase
+        .from('reactions')
+        .select('message_id, emoji, user_id, profiles!user_id(username)')
+        .in('message_id', messageIds);
+
+      if (reactionsError) {
+        console.error('Error fetching reactions:', reactionsError);
+      }
+
+      // Group reactions by message and emoji
+      const reactionsByMessage = (reactionsData || []).reduce((acc: any, reaction: any) => {
+        const messageId = reaction.message_id;
+        const emoji = reaction.emoji;
+        
+        if (!acc[messageId]) acc[messageId] = {};
+        if (!acc[messageId][emoji]) {
+          acc[messageId][emoji] = { emoji, count: 0, users: [] };
+        }
+        
+        acc[messageId][emoji].count++;
+        acc[messageId][emoji].users.push(reaction.user_id);
+        return acc;
+      }, {});
+
+      // Add reactions to each message
+      const messagesWithReactions = data.map(message => ({
         ...message,
-        reactions: []
+        reactions: Object.values(reactionsByMessage[message.id] || {})
       }));
 
-      return messagesWithEmptyReactions.reverse(); // Reverse to show oldest first
+      return messagesWithReactions.reverse(); // Reverse to show oldest first
     } catch (err) {
       console.error('Error fetching messages:', err);
       throw err;

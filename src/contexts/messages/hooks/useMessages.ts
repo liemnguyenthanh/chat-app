@@ -71,9 +71,9 @@ export const useMessages = (messageService: MessageService, user: User | null) =
       sending: true,
       author: {
         id: user.id,
-        username: user.user_metadata?.username || user.email?.split('@')[0] || 'Unknown',
-        full_name: user.user_metadata?.full_name,
-        avatar_url: user.user_metadata?.avatar_url
+        username: 'Sending...',  // Placeholder - will be replaced by real-time update
+        full_name: undefined,
+        avatar_url: undefined
       },
       reactions: []
     };

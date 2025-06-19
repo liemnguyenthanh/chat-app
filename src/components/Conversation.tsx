@@ -1,18 +1,18 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { useUser } from '@supabase/auth-helpers-react';
+import React, { useState, useRef, useEffect } from "react";
+import { useUser } from "@supabase/auth-helpers-react";
+import { Box, Menu, MenuItem } from "@mui/material";
 import {
-  Box,
-  Menu,
-  MenuItem,
-} from '@mui/material';
-import { useMessagesContext, Message } from '@/contexts/messages/MessagesContext';
-import { format } from 'date-fns';
+  useMessagesContext,
+  Message,
+} from "@/contexts/messages/MessagesContext";
+import { format } from "date-fns";
 
 // Import sub-components
-import { MessageList } from './conversation/components/MessageList';
-import { TypingIndicator } from './conversation/components/TypingIndicator';
-import { MessageInput } from './conversation/components/MessageInput';
-import { ConnectionStatus } from './conversation/components/ConnectionStatus';
+import { MessageList } from "./conversation/components/MessageList";
+import { TypingIndicator } from "./conversation/components/TypingIndicator";
+import { MessageInput } from "./conversation/components/MessageInput";
+import { ConnectionStatus } from "./conversation/components/ConnectionStatus";
+import { ConnectionDebugger } from "./debug/ConnectionDebugger";
 
 interface ConversationProps {
   roomId: string;
@@ -41,12 +41,14 @@ const Conversation: React.FC<ConversationProps> = ({ roomId, roomName }) => {
   } = useMessagesContext();
 
   // State for UI interactions
-  const [newMessage, setNewMessage] = useState('');
+  const [newMessage, setNewMessage] = useState("");
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
-  const [editingContent, setEditingContent] = useState('');
+  const [editingContent, setEditingContent] = useState("");
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
-  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
-  const [lastMessageTime, setLastMessageTime] = useState<string>('');
+  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(
+    null
+  );
+  const [lastMessageTime, setLastMessageTime] = useState<string>("");
   const [isConnected, setIsConnected] = useState(true);
 
   // Monitor connection status
@@ -55,13 +57,13 @@ const Conversation: React.FC<ConversationProps> = ({ roomId, roomName }) => {
       setIsConnected(navigator.onLine);
     };
 
-    window.addEventListener('online', checkConnection);
-    window.addEventListener('offline', checkConnection);
+    window.addEventListener("online", checkConnection);
+    window.addEventListener("offline", checkConnection);
     checkConnection();
 
     return () => {
-      window.removeEventListener('online', checkConnection);
-      window.removeEventListener('offline', checkConnection);
+      window.removeEventListener("online", checkConnection);
+      window.removeEventListener("offline", checkConnection);
     };
   }, []);
 
@@ -77,40 +79,42 @@ const Conversation: React.FC<ConversationProps> = ({ roomId, roomName }) => {
     if (messages.length > 0) {
       const lastMessage = messages[messages.length - 1];
       try {
-        const timeString = format(new Date(lastMessage.created_at), 'HH:mm');
+        const timeString = format(new Date(lastMessage.created_at), "HH:mm");
         setLastMessageTime(timeString);
       } catch {
-        setLastMessageTime('');
+        setLastMessageTime("");
       }
     }
   }, [messages]);
 
-
   // Handlers
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !roomId) return;
-    
+
     // Stop typing indicator immediately when sending message
     stopTyping(roomId);
-    
+
     await sendMessage(roomId, newMessage.trim());
-    setNewMessage('');
+    setNewMessage("");
   };
 
   const handleEditMessage = async () => {
     if (!editingMessageId || !editingContent.trim()) return;
-    
+
     await editMessage(editingMessageId, editingContent.trim());
     setEditingMessageId(null);
-    setEditingContent('');
+    setEditingContent("");
   };
 
   const handleCancelEdit = () => {
     setEditingMessageId(null);
-    setEditingContent('');
+    setEditingContent("");
   };
 
-  const handleMessageMenu = (event: React.MouseEvent<HTMLElement>, messageId: string) => {
+  const handleMessageMenu = (
+    event: React.MouseEvent<HTMLElement>,
+    messageId: string
+  ) => {
     setMenuAnchorEl(event.currentTarget);
     setSelectedMessageId(messageId);
   };
@@ -122,7 +126,7 @@ const Conversation: React.FC<ConversationProps> = ({ roomId, roomName }) => {
 
   const handleStartEdit = () => {
     if (!selectedMessageId) return;
-    
+
     const message = messages.find((m: Message) => m.id === selectedMessageId);
     if (message && message.content) {
       setEditingMessageId(selectedMessageId);
@@ -133,7 +137,7 @@ const Conversation: React.FC<ConversationProps> = ({ roomId, roomName }) => {
 
   const handleDeleteMessage = async () => {
     if (!selectedMessageId) return;
-    
+
     await deleteMessage(selectedMessageId);
     handleMenuClose();
   };
@@ -155,14 +159,16 @@ const Conversation: React.FC<ConversationProps> = ({ roomId, roomName }) => {
   };
 
   return (
-    <Box sx={{ 
-      height: '100%', 
-      display: 'flex', 
-      flexDirection: 'column',
-      position: 'relative'
-    }}>
+    <Box
+      sx={{
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        position: "relative",
+      }}
+    >
       {/* Connection Status */}
-      <ConnectionStatus 
+      <ConnectionStatus
         isConnected={isConnected}
         lastMessageTime={lastMessageTime}
       />
@@ -203,11 +209,11 @@ const Conversation: React.FC<ConversationProps> = ({ roomId, roomName }) => {
         anchorEl={menuAnchorEl}
         open={Boolean(menuAnchorEl)}
         onClose={handleMenuClose}
-        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+        transformOrigin={{ horizontal: "right", vertical: "top" }}
+        anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
       >
         <MenuItem onClick={handleStartEdit}>Edit</MenuItem>
-        <MenuItem onClick={handleDeleteMessage} sx={{ color: 'error.main' }}>
+        <MenuItem onClick={handleDeleteMessage} sx={{ color: "error.main" }}>
           Delete
         </MenuItem>
       </Menu>

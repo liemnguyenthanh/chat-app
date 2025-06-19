@@ -11,8 +11,6 @@ import { format } from "date-fns";
 import { MessageList } from "./conversation/components/MessageList";
 import { TypingIndicator } from "./conversation/components/TypingIndicator";
 import { MessageInput } from "./conversation/components/MessageInput";
-import { ConnectionStatus } from "./conversation/components/ConnectionStatus";
-import { ConnectionDebugger } from "./debug/ConnectionDebugger";
 
 interface ConversationProps {
   roomId: string;
@@ -167,12 +165,6 @@ const Conversation: React.FC<ConversationProps> = ({ roomId, roomName }) => {
         position: "relative",
       }}
     >
-      {/* Connection Status */}
-      <ConnectionStatus
-        isConnected={isConnected}
-        lastMessageTime={lastMessageTime}
-      />
-
       {/* Messages List */}
       <MessageList
         messages={messages}

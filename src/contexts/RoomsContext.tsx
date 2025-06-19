@@ -57,61 +57,30 @@ export const RoomsProvider: React.FC<RoomsProviderProps> = ({ children }) => {
     try {
       setError(null);
 
-      // Fetch groups where user is a member
-      const { data: groupsData, error: groupsError } = await supabase
-        .from("groups")
-        .select(
-          `
-          id,
-          name,
-          description,
-          is_private,
-          created_at,
-          updated_at,
-          group_members!inner(
-            user_id
-          )
-        `
-        )
-        .eq("group_members.user_id", user.id)
-        .order("updated_at", { ascending: false });
-
-      if (groupsError) {
-        throw groupsError;
+      // Get the current session to include auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.access_token) {
+        throw new Error('No valid session');
       }
 
-      // Transform groups data to Room format
-      const transformedRooms: Room[] = await Promise.all(
-        (groupsData || []).map(async (group) => {
-          // Get member count
-          const { count: memberCount } = await supabase
-            .from("group_members")
-            .select("*", { count: "exact", head: true })
-            .eq("group_id", group.id);
+      // Call the Edge Function instead of multiple database queries
+      const { data, error: functionError } = await supabase.functions.invoke('fetch-rooms', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
 
-          // Get last message
-          const { data: lastMessageData } = await supabase
-            .from("messages")
-            .select("content, created_at")
-            .eq("group_id", group.id)
-            .eq("deleted", false)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .single();
+      if (functionError) {
+        throw functionError;
+      }
 
-          return {
-            id: group.id,
-            name: group.name,
-            lastMessage: lastMessageData?.content || "No messages yet",
-            unreadCount: 0, // TODO: Implement unread count logic
-            isPrivate: group.is_private,
-            memberCount: memberCount || 0,
-            lastActivity: lastMessageData?.created_at || group.updated_at,
-          };
-        })
-      );
+      if (data?.error) {
+        throw new Error(data.error);
+      }
 
-      setRooms(transformedRooms);
+      // Set the rooms data directly from the Edge Function response
+      setRooms(data?.rooms || []);
     } catch (err) {
       console.error("Error fetching rooms:", err);
       setError("Failed to load rooms");

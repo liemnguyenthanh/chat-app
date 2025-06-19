@@ -3,6 +3,8 @@ import { useUser } from "@supabase/auth-helpers-react";
 import { Box, CircularProgress, Typography } from "@mui/material";
 import { Message } from "@/contexts/messages/MessagesContext";
 import { MessageGroup } from "./MessageGroup";
+import { MessageListSkeleton, LoadMoreMessagesSkeleton } from "@/components/skeletons";
+import { useSkeletonLoading } from '@/hooks/useSkeletonLoading';
 
 interface MessageListProps {
   messages: Message[];
@@ -45,6 +47,7 @@ export const MessageList: React.FC<MessageListProps> = ({
   const user = useUser();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const showSkeleton = useSkeletonLoading(loading && messages.length === 0, 800);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -95,58 +98,66 @@ export const MessageList: React.FC<MessageListProps> = ({
 
   const messageGroups = groupMessages(messages);
 
+  // Show skeleton loading for initial load
+  if (showSkeleton) {
+    return <MessageListSkeleton />;
+  }
+
   return (
     <Box
       ref={messagesContainerRef}
       sx={{
-        flexGrow: 1,
+        flex: 1,
         overflowY: "auto",
-        padding: 2,
+        p: 1,
         display: "flex",
         flexDirection: "column",
-        gap: 1,
       }}
       onScroll={handleScroll}
     >
       {/* Load more indicator */}
-      {hasMore && (
-        <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
-          {loading ? (
-            <CircularProgress size={24} />
-          ) : (
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ cursor: "pointer" }}
-              onClick={onLoadMore}
-            >
-              Load more messages
-            </Typography>
-          )}
-        </Box>
+      {loading && hasMore && (
+        <LoadMoreMessagesSkeleton />
       )}
 
-      {/* Message Groups */}
-      {messageGroups.map((group, groupIndex) => (
-        <MessageGroup
-          key={`group-${groupIndex}-${group[0].id}`}
-          messages={group}
-          isEditing={group.some((msg) => editingMessageId === msg.id)}
-          editingMessageId={editingMessageId}
-          editingContent={editingContent}
-          failedMessages={failedMessages}
-          sendingMessageId={sendingMessageId}
-          onEditingContentChange={onEditingContentChange}
-          onEditMessage={onEditMessage}
-          onCancelEdit={onCancelEdit}
-          onMessageMenu={onMessageMenu}
-          onReaction={onReaction}
-          onRetryFailedMessage={onRetryFailedMessage}
-          onRemoveFailedMessage={onRemoveFailedMessage}
-        />
-      ))}
+      {/* Messages */}
+      {messageGroups.length === 0 && !loading ? (
+        <Box
+          sx={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            textAlign: "center",
+            color: "text.secondary",
+          }}
+        >
+          <Typography variant="body2">
+            No messages yet. Start the conversation!
+          </Typography>
+        </Box>
+      ) : (
+        messageGroups.map((group, groupIndex) => (
+          <MessageGroup
+              key={group[0].id}
+              messages={group}
+              isEditing={!!editingMessageId}
+              editingMessageId={editingMessageId}
+              editingContent={editingContent}
+              failedMessages={failedMessages}
+              sendingMessageId={sendingMessageId}
+              onEditingContentChange={onEditingContentChange}
+              onEditMessage={onEditMessage}
+              onCancelEdit={onCancelEdit}
+              onMessageMenu={onMessageMenu}
+              onReaction={onReaction}
+              onRetryFailedMessage={onRetryFailedMessage}
+              onRemoveFailedMessage={onRemoveFailedMessage}
+            />
+        ))
+      )}
 
-      {/* Auto-scroll anchor */}
+      {/* Scroll anchor */}
       <div ref={messagesEndRef} />
     </Box>
   );

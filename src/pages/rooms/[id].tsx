@@ -1,23 +1,38 @@
+import React from "react";
 import { useRouter } from "next/router";
 import Conversation from "@/components/Conversation";
 import ChatLayout from "@/components/ChatLayout";
 import RequireAuth from "@/components/RequireAuth";
-
-// Mock data removed - now using real-time data from Supabase
+import { useRoomsContext } from "@/contexts/RoomsContext";
+import {
+  ConversationHeaderSkeleton,
+  MessageListSkeleton,
+} from "@/components/skeletons";
+import { Box } from "@mui/material";
 
 export default function RoomPage() {
   const router = useRouter();
   const { id } = router.query;
+  const { rooms, loading: roomsLoading } = useRoomsContext();
+
   const roomId = Array.isArray(id) ? id[0] : id;
+  const room = rooms.find((r) => r.id === roomId);
 
   if (!roomId) return null;
-
-  // Messages are now handled by MessagesContext
 
   return (
     <RequireAuth>
       <ChatLayout>
-        <Conversation roomId={roomId as string} roomName={roomId as string} />
+        {roomsLoading || !room ? (
+          <Box
+            sx={{ height: "100%", display: "flex", flexDirection: "column" }}
+          >
+            <ConversationHeaderSkeleton />
+            <MessageListSkeleton />
+          </Box>
+        ) : (
+          <Conversation roomId={roomId as string} roomName={room.name} />
+        )}
       </ChatLayout>
     </RequireAuth>
   );

@@ -11,9 +11,10 @@ const drawerWidth = 280;
 
 interface SidebarProps {
   rooms: Room[];
+  loading?: boolean;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ rooms }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ rooms, loading = false }) => {
   return (
     <Drawer
       variant="permanent"
@@ -37,11 +38,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ rooms }) => {
         </Typography>
       </Box>
       <Box sx={{ flexGrow: 1, overflow: "auto" }}>
-        <RoomList rooms={rooms} />
+        <RoomList rooms={rooms} loading={loading} />
       </Box>
     </Drawer>
   );
 };
 
 // Export the drawer width for use in other components
-export { drawerWidth }; 
+export { drawerWidth };

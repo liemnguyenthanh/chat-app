@@ -54,6 +54,7 @@ export const RoomsProvider: React.FC<RoomsProviderProps> = ({ children }) => {
       return;
     }
 
+    setLoading(true);
     try {
       setError(null);
 

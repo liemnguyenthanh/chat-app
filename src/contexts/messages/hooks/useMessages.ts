@@ -20,6 +20,12 @@ export const useMessages = (messageService: MessageService, user: User | null) =
     try {
       setLoading(true);
       setError(null);
+      
+      // Clear messages immediately when switching to a different room
+      if (currentGroupId !== groupId) {
+        setMessages([]);
+      }
+      
       setCurrentGroupId(groupId);
       
       const fetchedMessages = await messageService.fetchMessages(groupId);
@@ -254,4 +260,4 @@ export const useMessages = (messageService: MessageService, user: User | null) =
     removeReaction,
     markAsRead
   };
-}; 
+};

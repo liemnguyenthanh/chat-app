@@ -17,6 +17,8 @@ import {
   People as PeopleIcon,
   Lock as LockIcon,
 } from "@mui/icons-material";
+import { RoomListItemSkeleton } from "@/components/skeletons";
+import { useSkeletonLoading, useStaggeredSkeleton } from '@/hooks/useSkeletonLoading';
 
 export interface Room {
   id: string;
@@ -30,11 +32,25 @@ export interface Room {
 
 interface RoomListProps {
   rooms: Room[];
+  loading?: boolean;
 }
 
-const RoomList: React.FC<RoomListProps> = ({ rooms }) => {
+const RoomList: React.FC<RoomListProps> = ({ rooms, loading = false }) => {
   const router = useRouter();
-  const currentRoomId = router.query.id;
+  const currentRoomId = router.query.id as string;
+  const showSkeleton = useSkeletonLoading(loading, 600);
+  const visibleSkeletonItems = useStaggeredSkeleton(showSkeleton, 6, 150);
+
+  // Show skeleton loading with staggered animation
+  if (showSkeleton) {
+    return (
+      <Box sx={{ width: '100%' }}>
+        {Array.from({ length: visibleSkeletonItems }).map((_, index) => (
+          <RoomListItemSkeleton key={index} />
+        ))}
+      </Box>
+    );
+  }
 
   if (rooms.length === 0) {
     return (

@@ -26,6 +26,7 @@ import {
 } from '@mui/icons-material';
 import { useInvitationsContext } from '@/contexts/InvitationsContext';
 import { formatDistanceToNow } from 'date-fns';
+import { InvitationItemSkeleton } from '@/components/skeletons';
 
 interface InvitationsPanelProps {
   groupId?: string;
@@ -162,7 +163,13 @@ const InvitationsPanel: React.FC<InvitationsPanelProps> = ({ groupId }) => {
         </Tabs>
       )}
 
-      {filteredInvitations.length === 0 ? (
+      {loading ? (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {Array.from({ length: 3 }).map((_, index) => (
+            <InvitationItemSkeleton key={index} />
+          ))}
+        </Box>
+      ) : filteredInvitations.length === 0 ? (
         <Box sx={{ textAlign: 'center', py: 4 }}>
           <Typography variant="body2" color="text.secondary">
             {tabValue === 0 ? 'No pending invitations' : 

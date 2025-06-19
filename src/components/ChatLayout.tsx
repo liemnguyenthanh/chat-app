@@ -30,7 +30,7 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({
   const router = useRouter();
   const supabase = useSupabaseClient();
   const { user, profile, refreshProfile } = useUserContext();
-  const { rooms } = useRoomsContext();
+  const { rooms, loading: roomsLoading } = useRoomsContext();
   
   // Get the current room from the URL
   const currentRoomId = router.query.id as string;
@@ -144,7 +144,7 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({
       />
 
       {/* Sidebar */}
-      <Sidebar rooms={rooms} />
+      <Sidebar rooms={rooms} loading={roomsLoading} />
 
       {/* Main Content */}
       <Box

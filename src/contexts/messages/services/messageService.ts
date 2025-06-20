@@ -11,103 +11,48 @@ export class MessageService {
     if (!this.user) return [];
 
     try {
-      // Get the current session for auth token
-      const { data: { session } } = await this.supabase.auth.getSession();
-      
-      if (!session?.access_token) {
-        throw new Error('No valid session');
+      // Use the new optimized RPC function for instant message fetching
+      const { data: result, error: rpcError } = await this.supabase.rpc('fetch_group_messages', {
+        p_group_id: groupId,
+        p_user_id: this.user.id,
+        p_offset: offset,
+        p_limit: limit,
+        p_include_reactions: true
+      });
+
+      if (rpcError) {
+        throw rpcError;
       }
 
-      // Try to use the Edge Function first
-      try {
-        const { data, error: functionError } = await this.supabase.functions.invoke('fetch-messages', {
-          body: {
-            groupId,
-            offset,
-            limit,
-            includeReactions: true,
-            includeThreads: true,
-            includeReadStatus: true
-          },
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
-        });
-
-        if (functionError) {
-          throw functionError;
-        }
-
-        if (data?.error) {
-          throw new Error(data.error);
-        }
-
-        return data?.messages || [];
-      } catch (edgeFunctionError) {
-        console.log('Edge Function not available, using fallback queries');
-        
-        // Fallback to original implementation
-        const { data, error } = await this.supabase
-          .from('messages')
-          .select(`
-            *,
-            author:profiles!author_id(
-              id,
-              username,
-              full_name,
-              avatar_url
-            ),
-            attachments(
-              id,
-              filename,
-              file_size,
-              mime_type,
-              bucket_path
-            )
-          `)
-          .eq('group_id', groupId)
-          .eq('deleted', false)
-          .order('created_at', { ascending: false })
-          .range(offset, offset + limit - 1);
-
-        if (error) throw error;
-
-        if (!data || data.length === 0) return [];
-
-        // Fetch reactions for all messages in this batch
-        const messageIds = data.map(msg => msg.id);
-        const { data: reactionsData, error: reactionsError } = await this.supabase
-          .from('reactions')
-          .select('message_id, emoji, user_id, profiles!user_id(username)')
-          .in('message_id', messageIds);
-
-        if (reactionsError) {
-          console.error('Error fetching reactions:', reactionsError);
-        }
-
-        // Group reactions by message and emoji
-        const reactionsByMessage = (reactionsData || []).reduce((acc: any, reaction: any) => {
-          const messageId = reaction.message_id;
-          const emoji = reaction.emoji;
-          
-          if (!acc[messageId]) acc[messageId] = {};
-          if (!acc[messageId][emoji]) {
-            acc[messageId][emoji] = { emoji, count: 0, users: [] };
-          }
-          
-          acc[messageId][emoji].count++;
-          acc[messageId][emoji].users.push(reaction.user_id);
-          return acc;
-        }, {});
-
-        // Add reactions to each message
-        const messagesWithReactions = data.map(message => ({
-          ...message,
-          reactions: Object.values(reactionsByMessage[message.id] || {})
-        }));
-
-        return messagesWithReactions.reverse(); // Reverse to show oldest first
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch messages');
       }
+
+      // Transform the data to match the Message interface
+      const messages: Message[] = (result.messages || []).map((msg: any) => ({
+        id: msg.id,
+        group_id: msg.group_id,
+        author_id: msg.author_id,
+        content: msg.content,
+        data: msg.data,
+        reply_to: msg.reply_to,
+        thread_id: msg.thread_id,
+        message_type: msg.message_type,
+        created_at: msg.created_at,
+        updated_at: msg.updated_at,
+        deleted: msg.deleted,
+        deleted_at: msg.deleted_at,
+        author: {
+          id: msg.author.id,
+          username: msg.author.username,
+          full_name: msg.author.full_name,
+          avatar_url: msg.author.avatar_url,
+        },
+        attachments: msg.attachments || [],
+        reactions: msg.reactions || []
+      }));
+
+      return messages.reverse(); // Reverse to show oldest first (as expected by the UI)
     } catch (err) {
       console.error('Error fetching messages:', err);
       throw err;

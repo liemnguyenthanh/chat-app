@@ -58,37 +58,34 @@ export const RoomsProvider: React.FC<RoomsProviderProps> = ({ children }) => {
     try {
       setError(null);
 
-      // Get the current session to include auth token
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session?.access_token) {
-        throw new Error('No valid session');
-      }
-
-      // Call the Edge Function instead of multiple database queries
-      const { data, error: functionError } = await supabase.functions.invoke('fetch-rooms', {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
+      // Use optimized RPC function for instant room fetching
+      const { data: roomsData, error: roomsError } = await supabase.rpc('fetch_user_rooms', {
+        user_id: user.id
       });
 
-      if (functionError) {
-        throw functionError;
+      if (roomsError) {
+        throw roomsError;
       }
 
-      if (data?.error) {
-        throw new Error(data.error);
-      }
+      // Transform the data to match the Room interface
+      const transformedRooms: Room[] = (roomsData || []).map((room: any) => ({
+        id: room.group_id,
+        name: room.group_name,
+        lastMessage: room.last_message,
+        unreadCount: room.unread_count || 0,
+        isPrivate: room.is_private,
+        memberCount: Number(room.member_count),
+        lastActivity: room.last_activity,
+      }));
 
-      // Set the rooms data directly from the Edge Function response
-      setRooms(data?.rooms || []);
-    } catch (err) {
-      console.error("Error fetching rooms:", err);
-      setError("Failed to load rooms");
+      setRooms(transformedRooms);
+    } catch (error: any) {
+      console.error('Error fetching rooms:', error);
+      setError(error.message || 'Failed to fetch rooms');
     } finally {
       setLoading(false);
     }
-  }, [supabase, user]);
+  }, [user]);
 
   const refreshRooms = useCallback(async () => {
     await fetchRooms();

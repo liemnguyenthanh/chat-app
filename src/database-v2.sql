@@ -62,6 +62,7 @@ create table if not exists groups (
   owner_id    uuid not null references profiles(id) on delete cascade,
   is_private  boolean default false,
   max_members integer default 100 check (max_members > 0 and max_members <= 1000),
+  last_message_id uuid references messages(id) on delete set null, -- NEW: Fast room fetching
   created_at  timestamp with time zone default now(),
   updated_at  timestamp with time zone default now()
 );
@@ -373,6 +374,28 @@ begin
 end;
 $$ language plpgsql;
 
+-- NEW: Function to update group's last message for fast room fetching
+create or replace function update_group_last_message()
+returns trigger
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  -- Update the group's last message reference when a new message is added
+  if TG_OP = 'INSERT' then
+    update groups 
+    set 
+      last_message_id = NEW.id,
+      updated_at = NOW()
+    where id = NEW.group_id;
+    
+    return NEW;
+  end if;
+  
+  return null;
+end;
+$$ language plpgsql;
+
 -- NEW: Function to validate group membership for RLS
 create or replace function is_group_member(p_group_id uuid, p_user_id uuid)
 returns boolean
@@ -431,6 +454,12 @@ create trigger trg_message_delete
   before update on messages
   for each row execute function handle_message_delete();
 
+-- NEW: Trigger to automatically update last message when messages are inserted
+drop trigger if exists trg_update_group_last_message on messages;
+create trigger trg_update_group_last_message
+  after insert on messages
+  for each row execute function update_group_last_message();
+
 -- =====================================================================
 -- INDEXES (OPTIMIZED: Removed redundant, added missing)
 -- =====================================================================
@@ -442,6 +471,7 @@ create index if not exists idx_profiles_username on profiles(username) where use
 create index if not exists idx_groups_owner on groups(owner_id);
 create index if not exists idx_groups_created_at on groups(created_at desc);
 create index if not exists idx_groups_private on groups(is_private, created_at desc);
+create index if not exists idx_groups_last_message on groups(last_message_id) where last_message_id is not null; -- NEW: Fast room fetching
 
 -- Group members (OPTIMIZED: Better composite indexes)
 create index if not exists idx_group_members_group_role on group_members(group_id, role);
@@ -912,6 +942,201 @@ begin
   return now() > (v_last_message_time + (v_slow_mode_seconds * interval '1 second'));
 end;
 $$ language plpgsql stable;
+
+-- Optimized room fetching using last_message_id for instant performance
+create or replace function fetch_user_rooms(user_id uuid)
+returns table(
+  group_id uuid,
+  group_name text,
+  is_private boolean,
+  created_at timestamptz,
+  updated_at timestamptz,
+  member_count bigint,
+  last_message text,
+  last_activity timestamptz,
+  unread_count bigint
+)
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  return query
+  select 
+    g.id as group_id,
+    g.name as group_name,
+    g.is_private,
+    g.created_at,
+    g.updated_at,
+    count(gm2.user_id) as member_count,
+    coalesce(
+      case 
+        when length(m.content) > 50 
+        then substring(m.content from 1 for 50) || '...'
+        else m.content
+      end,
+      'No messages yet'
+    ) as last_message,
+    coalesce(m.created_at, g.updated_at) as last_activity,
+    0::bigint as unread_count -- Can be enhanced with actual unread logic later
+  from groups g
+  inner join group_members gm on g.id = gm.group_id
+  left join group_members gm2 on g.id = gm2.group_id -- For member count
+  left join messages m on g.last_message_id = m.id and m.deleted = false
+  where gm.user_id = fetch_user_rooms.user_id
+  group by g.id, g.name, g.is_private, g.created_at, g.updated_at, m.content, m.created_at
+  order by coalesce(m.created_at, g.updated_at) desc;
+end;
+$$ language plpgsql stable;
+
+-- Optimized message fetching function (replaces Edge Function + multiple queries)
+create or replace function fetch_group_messages(
+  p_group_id uuid,
+  p_user_id uuid,
+  p_offset integer default 0,
+  p_limit integer default 50,
+  p_include_reactions boolean default true
+)
+returns json
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_is_member boolean;
+  v_result json;
+begin
+  -- Check if user is a member of the group (security check)
+  select exists (
+    select 1 from group_members 
+    where group_id = p_group_id and user_id = p_user_id
+  ) into v_is_member;
+  
+  if not v_is_member then
+    return json_build_object(
+      'success', false,
+      'error', 'Access denied: User is not a member of this group'
+    );
+  end if;
+  
+  -- Build the result using a CTE to avoid aggregation issues
+  with message_data as (
+    select 
+      m.id,
+      m.group_id,
+      m.author_id,
+      m.content,
+      m.data,
+      m.reply_to,
+      m.thread_id,
+      m.message_type,
+      m.created_at,
+      m.updated_at,
+      m.deleted,
+      m.deleted_at,
+      json_build_object(
+        'id', p.id,
+        'username', p.username,
+        'full_name', p.full_name,
+        'avatar_url', p.avatar_url
+      ) as author,
+      coalesce(
+        (select json_agg(
+          json_build_object(
+            'id', att.id,
+            'filename', att.filename,
+            'file_size', att.file_size,
+            'mime_type', att.mime_type,
+            'bucket_path', att.bucket_path
+          )
+        ) from attachments att where att.message_id = m.id),
+        '[]'::json
+      ) as attachments,
+      case 
+        when p_include_reactions then
+          coalesce(
+            (select json_agg(
+              json_build_object(
+                'emoji', react_agg.emoji,
+                'count', react_agg.count,
+                'users', react_agg.users
+              )
+            ) from (
+              select 
+                r.emoji,
+                count(*) as count,
+                json_agg(r.user_id) as users
+              from reactions r
+              where r.message_id = m.id
+              group by r.emoji
+            ) react_agg),
+            '[]'::json
+          )
+        else '[]'::json
+      end as reactions,
+      count(*) over() as total_count
+    from messages m
+    inner join profiles p on m.author_id = p.id
+    where m.group_id = p_group_id
+      and m.deleted = false
+    order by m.created_at desc
+    offset p_offset
+    limit p_limit
+  )
+  select json_build_object(
+    'success', true,
+    'messages', coalesce(json_agg(
+      json_build_object(
+        'id', md.id,
+        'group_id', md.group_id,
+        'author_id', md.author_id,
+        'content', md.content,
+        'data', md.data,
+        'reply_to', md.reply_to,
+        'thread_id', md.thread_id,
+        'message_type', md.message_type,
+        'created_at', md.created_at,
+        'updated_at', md.updated_at,
+        'deleted', md.deleted,
+        'deleted_at', md.deleted_at,
+        'author', md.author,
+        'attachments', md.attachments,
+        'reactions', md.reactions
+      ) order by md.created_at desc
+    ), '[]'::json),
+    'total_count', coalesce((select total_count from message_data limit 1), 0),
+    'has_more', (p_offset + p_limit) < coalesce((select total_count from message_data limit 1), 0)
+  ) into v_result
+  from message_data md;
+  
+  return v_result;
+end;
+$$ language plpgsql stable;
+
+-- Function to populate existing groups with their last message (migration helper)
+create or replace function populate_last_message_ids()
+returns integer
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  updated_count integer;
+begin
+  update groups 
+  set last_message_id = sub.latest_message_id
+  from (
+    select distinct on (group_id)
+      group_id,
+      id as latest_message_id
+    from messages 
+    where deleted = false
+    order by group_id, created_at desc
+  ) sub
+  where groups.id = sub.group_id
+    and groups.last_message_id is null;
+  
+  get diagnostics updated_count = row_count;
+  return updated_count;
+end;
+$$ language plpgsql;
 
 -- =====================================================================
 -- CORE FEATURE VERIFICATION & SETUP FUNCTIONS

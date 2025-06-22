@@ -24,6 +24,7 @@ interface RoomsContextType {
     lastMessage: string,
     timestamp: string
   ) => void;
+  silentRefreshRooms: () => Promise<void>;
 }
 
 const RoomsContext = createContext<RoomsContextType | undefined>(undefined);
@@ -91,6 +92,39 @@ export const RoomsProvider: React.FC<RoomsProviderProps> = ({ children }) => {
     await fetchRooms();
   }, [fetchRooms]);
 
+  // Silent refresh for realtime updates - doesn't trigger loading state
+  const silentRefreshRooms = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      // Use optimized RPC function for instant room fetching
+      const { data: roomsData, error: roomsError } = await supabase.rpc('fetch_user_rooms', {
+        user_id: user.id
+      });
+
+      if (roomsError) {
+        console.error('Error in silent refresh:', roomsError);
+        return;
+      }
+
+      // Transform the data to match the Room interface
+      const transformedRooms: Room[] = (roomsData || []).map((room: any) => ({
+        id: room.group_id,
+        name: room.group_name,
+        lastMessage: room.last_message,
+        unreadCount: room.unread_count || 0,
+        isPrivate: room.is_private,
+        memberCount: Number(room.member_count),
+        lastActivity: room.last_activity,
+      }));
+
+      setRooms(transformedRooms);
+    } catch (error: any) {
+      console.error('Error in silent refresh:', error);
+    }
+    // Note: No setLoading(false) here since we never set it to true
+  }, [user, supabase]);
+
   const createRoom = useCallback(
     async (
       name: string,
@@ -120,8 +154,8 @@ export const RoomsProvider: React.FC<RoomsProviderProps> = ({ children }) => {
 
         // Note: The owner is automatically added as a member by the database trigger
 
-        // Refresh rooms to include the new one
-        await refreshRooms();
+        // Use silent refresh to avoid loading state that might block UI
+        await silentRefreshRooms();
 
         // Return the new room in the expected format
         return {
@@ -138,7 +172,7 @@ export const RoomsProvider: React.FC<RoomsProviderProps> = ({ children }) => {
         throw err;
       }
     },
-    [user, supabase, refreshRooms]
+    [user, supabase, silentRefreshRooms]
   );
 
   // Function to update room's last message in real-time
@@ -174,69 +208,40 @@ export const RoomsProvider: React.FC<RoomsProviderProps> = ({ children }) => {
       return;
     }
 
-    const channel = supabase
-      .channel("room-updates")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "messages",
-        },
-        async (payload) => {
-          try {
-            // Check if this message belongs to a room the user is in
-            const { data: membership, error } = await supabase
-              .from("group_members")
-              .select("group_id")
-              .eq("group_id", payload.new.group_id)
-              .eq("user_id", user.id)
-              .single();
+    // NOTE: Commenting out this subscription as it's now handled by global realtime hook
+    // to avoid duplicate subscriptions and loading states
+    
+    // const channel = supabase
+    //   .channel("room-updates")
+    //   .on(
+    //     "postgres_changes",
+    //     {
+    //       event: "INSERT",
+    //       schema: "public",
+    //       table: "groups",
+    //     },
+    //     (payload) => {
+    //       // Use silent refresh to avoid loading state
+    //       console.log('🏠 New group created, silent refresh');
+    //       silentRefreshRooms();
+    //     }
+    //   )
+    //   .subscribe((status) => {
+    //     if (status === "SUBSCRIBED") {
+    //       console.log("✅ Room updates subscription successful");
+    //     } else if (status === "CHANNEL_ERROR") {
+    //       console.error("❌ Room updates subscription error");
+    //     } else if (status === "TIMED_OUT") {
+    //       console.error("⏰ Room updates subscription timed out");
+    //     } else if (status === "CLOSED") {
+    //       console.log("🔒 Room updates subscription closed");
+    //     }
+    //   });
 
-            if (error) {
-              return;
-            }
-
-            if (membership && payload.new.content) {
-              updateRoomLastMessage(
-                payload.new.group_id,
-                payload.new.content,
-                payload.new.created_at
-              );
-            }
-          } catch (err) {
-            console.error("Error processing room message update:", err);
-          }
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "groups",
-        },
-        (payload) => {
-          // Refresh rooms when new groups are created
-          refreshRooms();
-        }
-      )
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") {
-          console.log("✅ Room updates subscription successful");
-        } else if (status === "CHANNEL_ERROR") {
-          console.error("❌ Room updates subscription error");
-        } else if (status === "TIMED_OUT") {
-          console.error("⏰ Room updates subscription timed out");
-        } else if (status === "CLOSED") {
-          console.log("🔒 Room updates subscription closed");
-        }
-      });
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user, supabase, updateRoomLastMessage, refreshRooms]);
+    // return () => {
+    //   supabase.removeChannel(channel);
+    // };
+  }, [user, supabase, silentRefreshRooms]);
 
   useEffect(() => {
     fetchRooms();
@@ -249,6 +254,7 @@ export const RoomsProvider: React.FC<RoomsProviderProps> = ({ children }) => {
     refreshRooms,
     createRoom,
     updateRoomLastMessage,
+    silentRefreshRooms,
   };
 
   return (

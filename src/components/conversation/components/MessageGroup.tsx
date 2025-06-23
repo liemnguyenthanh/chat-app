@@ -22,6 +22,7 @@ interface MessageGroupProps {
   onReaction: (messageId: string, emoji: string) => void;
   onRetryFailedMessage: (tempId: string) => void;
   onRemoveFailedMessage: (tempId: string) => void;
+  onReplyToMessage: (message: Message) => void;
 }
 
 export const MessageGroup: React.FC<MessageGroupProps> = ({
@@ -38,6 +39,7 @@ export const MessageGroup: React.FC<MessageGroupProps> = ({
   onReaction,
   onRetryFailedMessage,
   onRemoveFailedMessage,
+  onReplyToMessage,
 }) => {
   const user = useUser();
 
@@ -130,6 +132,7 @@ export const MessageGroup: React.FC<MessageGroupProps> = ({
               onReaction={onReaction}
               onRetryFailedMessage={onRetryFailedMessage}
               onRemoveFailedMessage={onRemoveFailedMessage}
+              onReplyToMessage={onReplyToMessage}
             />
           ))}
         </Box>

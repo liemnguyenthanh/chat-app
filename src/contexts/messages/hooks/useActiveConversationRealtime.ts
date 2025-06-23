@@ -124,7 +124,9 @@ export const useActiveConversationRealtime = ({
 
     if (shouldFetch) {
       try {
-        // Fetch complete message with author info
+        console.log('🔍 Fetching complete message data for:', payload.new.id);
+        
+        // First, fetch the basic message data
         const { data: messageData, error } = await supabase
           .from("messages")
           .select(
@@ -149,8 +151,54 @@ export const useActiveConversationRealtime = ({
           .single();
 
         if (error) {
-          console.error("Error fetching complete message:", error);
+          console.error("Error fetching message data:", error);
           return;
+        }
+
+        console.log('📋 Basic message data fetched:', messageData);
+
+        // If there's a reply_to, fetch the reply data separately
+        let reply_data = undefined;
+        if (messageData?.reply_to) {
+          console.log('🔗 Fetching reply data for reply_to:', messageData.reply_to);
+          
+          const { data: replyMessage, error: replyError } = await supabase
+            .from("messages")
+            .select(
+              `
+              id,
+              content,
+              author_id,
+              created_at,
+              author:profiles!author_id(
+                id,
+                username,
+                full_name,
+                avatar_url
+              )
+            `
+            )
+            .eq("id", messageData.reply_to)
+            .single();
+
+                     if (!replyError && replyMessage) {
+             console.log('✅ Reply data fetched:', replyMessage);
+             const authorData = Array.isArray(replyMessage.author) ? replyMessage.author[0] : replyMessage.author;
+             reply_data = {
+               id: replyMessage.id,
+               content: replyMessage.content,
+               author_id: replyMessage.author_id,
+               author: {
+                 id: authorData.id,
+                 username: authorData.username,
+                 full_name: authorData.full_name,
+                 avatar_url: authorData.avatar_url,
+               },
+               created_at: replyMessage.created_at,
+             };
+          } else {
+            console.warn('⚠️ Failed to fetch reply data:', replyError);
+          }
         }
 
         if (messageData) {
@@ -161,6 +209,7 @@ export const useActiveConversationRealtime = ({
             content: messageData.content,
             data: messageData.data,
             reply_to: messageData.reply_to,
+            reply_data: reply_data, // ✅ Now includes reply_data!
             thread_id: messageData.thread_id,
             message_type: messageData.message_type,
             created_at: messageData.created_at,
@@ -173,8 +222,11 @@ export const useActiveConversationRealtime = ({
               full_name: messageData.author.full_name,
               avatar_url: messageData.author.avatar_url,
             },
+            attachments: messageData.attachments || [],
             reactions: [],
           };
+
+          console.log('📨 Final message object:', newMessage);
 
           stableSetMessages.current((prev) => {
             // Final duplicate check before adding

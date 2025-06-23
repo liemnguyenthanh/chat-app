@@ -60,6 +60,7 @@ export const useGlobalRealtime = ({
   // Helper function to fetch complete message data
   const fetchMessageData = useCallback(async (messageId: string): Promise<Message | null> => {
     try {
+      // First, fetch the basic message data
       const { data: messageData, error } = await supabase
         .from("messages")
         .select(
@@ -80,6 +81,45 @@ export const useGlobalRealtime = ({
         return null;
       }
 
+      // If there's a reply_to, fetch the reply data separately
+      let reply_data = undefined;
+      if (messageData?.reply_to) {
+        const { data: replyMessage, error: replyError } = await supabase
+          .from("messages")
+          .select(
+            `
+            id,
+            content,
+            author_id,
+            created_at,
+            author:profiles!author_id(
+              id,
+              username,
+              full_name,
+              avatar_url
+            )
+          `
+          )
+          .eq("id", messageData.reply_to)
+          .single();
+
+        if (!replyError && replyMessage) {
+          const authorData = Array.isArray(replyMessage.author) ? replyMessage.author[0] : replyMessage.author;
+          reply_data = {
+            id: replyMessage.id,
+            content: replyMessage.content,
+            author_id: replyMessage.author_id,
+            author: {
+              id: authorData.id,
+              username: authorData.username,
+              full_name: authorData.full_name,
+              avatar_url: authorData.avatar_url,
+            },
+            created_at: replyMessage.created_at,
+          };
+        }
+      }
+
       return {
         id: messageData.id,
         group_id: messageData.group_id,
@@ -87,6 +127,7 @@ export const useGlobalRealtime = ({
         content: messageData.content,
         data: messageData.data,
         reply_to: messageData.reply_to,
+        reply_data: reply_data, // ✅ Now includes reply_data!
         thread_id: messageData.thread_id,
         message_type: messageData.message_type,
         created_at: messageData.created_at,

@@ -25,6 +25,7 @@ interface MessageListProps {
   onRetryFailedMessage: (tempId: string) => void;
   onRemoveFailedMessage: (tempId: string) => void;
   onLoadMore: () => void;
+  onReplyToMessage: (message: Message) => void;
 }
 
 export const MessageList: React.FC<MessageListProps> = ({
@@ -43,6 +44,7 @@ export const MessageList: React.FC<MessageListProps> = ({
   onRetryFailedMessage,
   onRemoveFailedMessage,
   onLoadMore,
+  onReplyToMessage,
 }) => {
   const user = useUser();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -153,6 +155,7 @@ export const MessageList: React.FC<MessageListProps> = ({
               onReaction={onReaction}
               onRetryFailedMessage={onRetryFailedMessage}
               onRemoveFailedMessage={onRemoveFailedMessage}
+              onReplyToMessage={onReplyToMessage}
             />
         ))
       )}

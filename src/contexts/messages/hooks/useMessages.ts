@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { User } from '@supabase/auth-helpers-react';
-import { Message } from '../types/messageTypes';
+import { Message, ReplyState } from '../types/messageTypes';
 import { MessageService } from '../services/messageService';
 
 const MESSAGES_PER_PAGE = 50;
@@ -13,6 +13,10 @@ export const useMessages = (messageService: MessageService, user: User | null) =
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [sendingMessageId, setSendingMessageId] = useState<string | null>(null);
   const [failedMessages, setFailedMessages] = useState<Set<string>>(new Set());
+  const [replyState, setReplyState] = useState<ReplyState>({
+    isReplying: false,
+    replyingTo: null,
+  });
 
   const loadMessages = useCallback(async (groupId: string) => {
     if (!user) return;
@@ -234,6 +238,20 @@ export const useMessages = (messageService: MessageService, user: User | null) =
     }
   }, [messageService]);
 
+  const setReplyToMessage = useCallback((message: Message | null) => {
+    setReplyState({
+      isReplying: !!message,
+      replyingTo: message,
+    });
+  }, []);
+
+  const clearReply = useCallback(() => {
+    setReplyState({
+      isReplying: false,
+      replyingTo: null,
+    });
+  }, []);
+
   return {
     // State
     messages,
@@ -243,6 +261,7 @@ export const useMessages = (messageService: MessageService, user: User | null) =
     hasMoreMessages,
     sendingMessageId,
     failedMessages,
+    replyState,
     
     // State setters (for realtime hooks)
     setMessages,
@@ -258,6 +277,8 @@ export const useMessages = (messageService: MessageService, user: User | null) =
     deleteMessage,
     addReaction,
     removeReaction,
-    markAsRead
+    markAsRead,
+    setReplyToMessage,
+    clearReply
   };
 };

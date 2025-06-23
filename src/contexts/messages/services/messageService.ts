@@ -36,6 +36,7 @@ export class MessageService {
         content: msg.content,
         data: msg.data,
         reply_to: msg.reply_to,
+        reply_data: msg.reply_data,
         thread_id: msg.thread_id,
         message_type: msg.message_type,
         created_at: msg.created_at,

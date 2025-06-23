@@ -13,6 +13,7 @@ import {
 import {
   MoreVert as MoreVertIcon,
   Add as AddIcon,
+  Reply as ReplyIcon,
 } from '@mui/icons-material';
 import { Message } from '@/contexts/messages/MessagesContext';
 
@@ -31,6 +32,7 @@ interface MessageBubbleProps {
   onReaction: (messageId: string, emoji: string) => void;
   onRetryFailedMessage: (tempId: string) => void;
   onRemoveFailedMessage: (tempId: string) => void;
+  onReplyToMessage: (message: Message) => void;
 }
 
 export const MessageBubble: React.FC<MessageBubbleProps> = ({
@@ -48,19 +50,20 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   onReaction,
   onRetryFailedMessage,
   onRemoveFailedMessage,
+  onReplyToMessage,
 }) => {
   const user = useUser();
   const [isHovering, setIsHovering] = useState(false);
   const [showQuickReactions, setShowQuickReactions] = useState(false);
   const isOwnMessage = message.author_id === user?.id;
 
-  // Show reactions only after hovering for a bit
+  // Show reactions only after hovering for longer
   useEffect(() => {
     let timeout: NodeJS.Timeout;
     if (isHovering && !isEditing) {
       timeout = setTimeout(() => {
         setShowQuickReactions(true);
-      }, 500); // Show after 500ms hover
+      }, 1000); // Show after 1 second hover to avoid conflicts
     } else {
       setShowQuickReactions(false);
     }
@@ -150,6 +153,47 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           </Box>
         ) : (
           <>
+            {/* Reply Preview */}
+            {message.reply_data && (
+              <Box sx={{ mb: 1 }}>
+                <Paper
+                  sx={{
+                    p: 1,
+                    bgcolor: isOwnMessage ? 'rgba(255,255,255,0.1)' : 'action.hover',
+                    borderLeft: 3,
+                    borderColor: 'primary.main',
+                    borderRadius: 1,
+                    opacity: 0.8,
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+                    <ReplyIcon sx={{ fontSize: '0.7rem', color: isOwnMessage ? 'rgba(255,255,255,0.7)' : 'text.secondary' }} />
+                    <Typography 
+                      variant="caption" 
+                      fontWeight={600} 
+                      sx={{ color: isOwnMessage ? 'rgba(255,255,255,0.8)' : 'text.secondary' }}
+                    >
+                      {message.reply_data.author.username}
+                    </Typography>
+                  </Box>
+                  <Typography 
+                    variant="caption" 
+                    sx={{ 
+                      display: 'block',
+                      color: isOwnMessage ? 'rgba(255,255,255,0.6)' : 'text.secondary',
+                      fontStyle: 'italic',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      maxWidth: '100%'
+                    }}
+                  >
+                    {message.reply_data.content || '[No content]'}
+                  </Typography>
+                </Paper>
+              </Box>
+            )}
+
             <Typography variant="body2" sx={{ wordBreak: "break-word" }}>
               {message.content}
             </Typography>
@@ -252,74 +296,140 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
         </Box>
       )}
       
-      {/* Simple Add Reaction Button (only show on hover) */}
-      {isHovering && !isEditing && (
+      {/* Primary Quick Actions (immediate on hover) */}
+      {isHovering && !isEditing && !showQuickReactions && (
         <Fade in={true}>
           <Box sx={{ 
             position: 'absolute',
-            top: -8,
-            [isOwnMessage ? 'left' : 'right']: 8,
-            zIndex: 10,
+            top: -12,
+            [isOwnMessage ? 'left' : 'right']: -4,
+            display: 'flex',
+            gap: 0.5,
+            bgcolor: 'background.paper',
+            borderRadius: '16px',
+            p: 0.5,
+            boxShadow: (theme) => theme.shadows[4],
+            border: '1px solid',
+            borderColor: 'divider',
+            zIndex: 15,
           }}>
-            <IconButton
-              size="small"
-              onClick={() => onReaction(message.id, '👍')} // Default to thumbs up
-              sx={{ 
-                width: 24,
-                height: 24,
-                bgcolor: 'background.paper',
-                border: '1px solid',
-                borderColor: 'divider',
-                boxShadow: (theme) => theme.shadows[2],
-                '&:hover': {
-                  bgcolor: 'action.hover',
-                  transform: 'scale(1.1)',
-                }
-              }}
-            >
-              <AddIcon sx={{ fontSize: '0.8rem' }} />
-            </IconButton>
+            {/* Reply Button - Always first/primary action */}
+            <Tooltip title="Reply">
+              <IconButton
+                size="small"
+                onClick={() => onReplyToMessage(message)}
+                sx={{ 
+                  width: 28,
+                  height: 28,
+                  '&:hover': {
+                    bgcolor: 'primary.light',
+                    color: 'primary.contrastText',
+                    transform: 'scale(1.1)',
+                  }
+                }}
+              >
+                <ReplyIcon sx={{ fontSize: '0.85rem' }} />
+              </IconButton>
+            </Tooltip>
+            
+            {/* Add Reaction Button */}
+            <Tooltip title="Add reaction">
+              <IconButton
+                size="small"
+                onClick={() => onReaction(message.id, '👍')}
+                sx={{ 
+                  width: 28,
+                  height: 28,
+                  '&:hover': {
+                    bgcolor: 'secondary.light',
+                    transform: 'scale(1.1)',
+                  }
+                }}
+              >
+                <AddIcon sx={{ fontSize: '0.85rem' }} />
+              </IconButton>
+            </Tooltip>
           </Box>
         </Fade>
       )}
       
-      {/* Quick Reactions (only for long hover) */}
-      <Fade in={showQuickReactions}>
-        <Box sx={{ 
-          position: 'absolute',
-          top: -6,
-          [isOwnMessage ? 'left' : 'right']: -10,
-          display: 'flex',
-          gap: 0.5,
-          bgcolor: 'background.paper',
-          borderRadius: '12px',
-          p: 0.5,
-          boxShadow: (theme) => theme.shadows[3],
-          border: '1px solid',
-          borderColor: 'divider',
-          zIndex: 20,
-        }}>
-          {quickReactionEmojis.map((emoji) => (
-            <IconButton
-              key={emoji}
-              size="small"
-              onClick={() => onReaction(message.id, emoji)}
-              sx={{ 
-                fontSize: '0.8rem', 
-                p: 0.25,
-                width: 24,
-                height: 24,
-                '&:hover': {
-                  transform: 'scale(1.2)',
-                  bgcolor: 'action.hover',
-                }
-              }}
-            >
-              {emoji}
-            </IconButton>
-          ))}
-        </Box>
-      </Fade>
+      {/* Extended Reactions (long hover) */}
+      {showQuickReactions && (
+        <Fade in={true}>
+          <Box sx={{ 
+            position: 'absolute',
+            top: -12,
+            [isOwnMessage ? 'left' : 'right']: -4,
+            display: 'flex',
+            gap: 0.25,
+            bgcolor: 'background.paper',
+            borderRadius: '20px',
+            p: 0.5,
+            boxShadow: (theme) => theme.shadows[8],
+            border: '1px solid',
+            borderColor: 'divider',
+            zIndex: 25,
+          }}>
+            {/* Reply Button - Still accessible */}
+            <Tooltip title="Reply">
+              <IconButton
+                size="small"
+                onClick={() => onReplyToMessage(message)}
+                sx={{ 
+                  width: 28,
+                  height: 28,
+                  bgcolor: 'primary.main',
+                  color: 'primary.contrastText',
+                  '&:hover': {
+                    bgcolor: 'primary.dark',
+                    transform: 'scale(1.1)',
+                  }
+                }}
+              >
+                <ReplyIcon sx={{ fontSize: '0.8rem' }} />
+              </IconButton>
+            </Tooltip>
+            
+            {/* Emoji Reactions */}
+            {quickReactionEmojis.map((emoji) => (
+              <IconButton
+                key={emoji}
+                size="small"
+                onClick={() => onReaction(message.id, emoji)}
+                sx={{ 
+                  fontSize: '0.9rem', 
+                  width: 28,
+                  height: 28,
+                  '&:hover': {
+                    transform: 'scale(1.2)',
+                    bgcolor: 'action.hover',
+                  }
+                }}
+              >
+                {emoji}
+              </IconButton>
+            ))}
+            
+            {/* Add More Reaction Button */}
+            <Tooltip title="More reactions">
+              <IconButton
+                size="small"
+                onClick={() => onReaction(message.id, '👍')}
+                sx={{ 
+                  width: 28,
+                  height: 28,
+                  '&:hover': {
+                    bgcolor: 'action.hover',
+                    transform: 'scale(1.1)',
+                  }
+                }}
+              >
+                <AddIcon sx={{ fontSize: '0.8rem' }} />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        </Fade>
+      )}
     </Box>
   );
 }; 

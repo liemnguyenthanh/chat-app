@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import {
   MoreVert as MoreVertIcon,
+  Reply as ReplyIcon,
 } from '@mui/icons-material';
 import { Message } from '@/contexts/messages/MessagesContext';
 import { format } from 'date-fns';
@@ -31,6 +32,7 @@ interface MessageItemProps {
   onReaction: (messageId: string, emoji: string) => void;
   onRetryFailedMessage: (tempId: string) => void;
   onRemoveFailedMessage: (tempId: string) => void;
+  onReplyToMessage: (message: Message) => void;
 }
 
 export const MessageItem: React.FC<MessageItemProps> = ({
@@ -47,6 +49,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   onReaction,
   onRetryFailedMessage,
   onRemoveFailedMessage,
+  onReplyToMessage,
 }) => {
   const user = useUser();
   const [showQuickReactions, setShowQuickReactions] = useState(false);
@@ -122,6 +125,46 @@ export const MessageItem: React.FC<MessageItemProps> = ({
             <Typography variant="caption" color="text.secondary">
               {formatTime(message.created_at)}
             </Typography>
+          </Box>
+        )}
+
+        {/* Reply Preview */}
+        {message.reply_data && (
+          <Box sx={{ ml: 1, mr: 1, mb: 1 }}>
+            <Paper
+              sx={{
+                p: 1,
+                bgcolor: 'action.hover',
+                borderLeft: 3,
+                borderColor: 'primary.main',
+                borderRadius: 1,
+                opacity: 0.8,
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+                <ReplyIcon sx={{ fontSize: '0.8rem', color: 'text.secondary' }} />
+                <Typography variant="caption" fontWeight={600} color="text.secondary">
+                  {message.reply_data.author.username}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {formatTime(message.reply_data.created_at)}
+                </Typography>
+              </Box>
+              <Typography 
+                variant="caption" 
+                sx={{ 
+                  display: 'block',
+                  color: 'text.secondary',
+                  fontStyle: 'italic',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  maxWidth: '100%'
+                }}
+              >
+                {message.reply_data.content || '[No content]'}
+              </Typography>
+            </Paper>
           </Box>
         )}
 
@@ -304,6 +347,27 @@ export const MessageItem: React.FC<MessageItemProps> = ({
             borderColor: 'divider',
             zIndex: 10,
           }}>
+            {/* Reply Button */}
+            <Tooltip title="Reply">
+              <IconButton
+                size="small"
+                onClick={() => onReplyToMessage(message)}
+                sx={{ 
+                  p: 0.5,
+                  width: 28,
+                  height: 28,
+                  transition: 'transform 0.1s ease-in-out',
+                  '&:hover': {
+                    transform: 'scale(1.3)',
+                    bgcolor: 'action.hover',
+                  }
+                }}
+              >
+                <ReplyIcon sx={{ fontSize: '0.8rem' }} />
+              </IconButton>
+            </Tooltip>
+            
+            {/* Emoji Reactions */}
             {quickReactionEmojis.map((emoji) => (
               <IconButton
                 key={emoji}

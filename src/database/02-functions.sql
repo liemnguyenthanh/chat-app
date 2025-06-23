@@ -156,4 +156,100 @@ begin
   group by g.id, g.name, g.is_private, g.created_at, g.updated_at, m.content, m.created_at
   order by coalesce(m.created_at, g.updated_at) desc;
 end;
+$$;
+
+-- Fetch group messages with reply data support
+create or replace function fetch_group_messages(
+    p_group_id uuid,
+    p_user_id uuid,
+    p_offset integer DEFAULT 0,
+    p_limit integer DEFAULT 50,
+    p_include_reactions boolean DEFAULT true
+) 
+returns json 
+language plpgsql 
+as $$
+declare
+    v_is_member boolean;
+    v_result json;
+begin
+    -- Check if user is a member of the group (security check)
+    select exists (
+        select 1 from group_members 
+        where group_id = p_group_id and user_id = p_user_id
+    ) into v_is_member;
+
+    if not v_is_member then
+        return json_build_object(
+            'success', false,
+            'error', 'Access denied: User is not a member of this group'
+        );
+    end if;
+
+    -- Build the result using a CTE to avoid aggregation issues
+    with message_data as (
+        select 
+            m.id,
+            m.group_id,
+            m.author_id,
+            m.content,
+            m.reply_to,
+            m.created_at,
+            m.updated_at,
+            m.deleted,
+            json_build_object(
+                'id', p.id,
+                'username', p.username,
+                'full_name', p.full_name,
+                'avatar_url', p.avatar_url
+            ) as author,
+            -- Enhanced reply data with JOIN for better performance
+            case 
+                when m.reply_to is not null then
+                    json_build_object(
+                        'id', rm.id,
+                        'content', rm.content,
+                        'author_id', rm.author_id,
+                        'author', json_build_object(
+                            'id', rp.id,
+                            'username', rp.username,
+                            'full_name', rp.full_name,
+                            'avatar_url', rp.avatar_url
+                        ),
+                        'created_at', rm.created_at
+                    )
+                else null
+            end as reply_data
+        from messages m
+        inner join profiles p on m.author_id = p.id
+        -- Optimized JOINs instead of subquery for reply data
+        left join messages rm on m.reply_to = rm.id and rm.deleted = false
+        left join profiles rp on rm.author_id = rp.id
+        where m.group_id = p_group_id
+          and m.deleted = false
+        order by m.created_at desc
+        offset p_offset
+        limit p_limit
+    )
+    select json_build_object(
+        'success', true,
+        'messages', coalesce(json_agg(
+            json_build_object(
+                'id', md.id,
+                'group_id', md.group_id,
+                'author_id', md.author_id,
+                'content', md.content,
+                'reply_to', md.reply_to,
+                'created_at', md.created_at,
+                'updated_at', md.updated_at,
+                'deleted', md.deleted,
+                'author', md.author,
+                'reply_data', md.reply_data
+            ) order by md.created_at desc
+        ), '[]'::json)
+    ) into v_result
+    from message_data md;
+
+    return v_result;
+end;
 $$; 

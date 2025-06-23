@@ -26,6 +26,7 @@ const Conversation: React.FC<ConversationProps> = ({ roomId, roomName }) => {
     typingUsers,
     failedMessages,
     sendingMessageId,
+    replyState,
     sendMessage,
     editMessage,
     deleteMessage,
@@ -36,6 +37,8 @@ const Conversation: React.FC<ConversationProps> = ({ roomId, roomName }) => {
     loadMoreMessages,
     startTyping,
     stopTyping,
+    setReplyToMessage,
+    clearReply,
   } = useMessagesContext();
 
   // State for UI interactions
@@ -92,8 +95,14 @@ const Conversation: React.FC<ConversationProps> = ({ roomId, roomName }) => {
     // Stop typing indicator immediately when sending message
     stopTyping(roomId);
 
-    await sendMessage(roomId, newMessage.trim());
+    const replyToId = replyState.isReplying ? replyState.replyingTo?.id : undefined;
+    await sendMessage(roomId, newMessage.trim(), replyToId);
     setNewMessage("");
+    
+    // Clear reply state after sending
+    if (replyState.isReplying) {
+      clearReply();
+    }
   };
 
   const handleEditMessage = async () => {
@@ -182,6 +191,7 @@ const Conversation: React.FC<ConversationProps> = ({ roomId, roomName }) => {
         onRetryFailedMessage={retryFailedMessage}
         onRemoveFailedMessage={removeFailedMessage}
         onLoadMore={handleLoadMore}
+        onReplyToMessage={setReplyToMessage}
       />
 
       {/* Typing Indicator */}
@@ -194,6 +204,8 @@ const Conversation: React.FC<ConversationProps> = ({ roomId, roomName }) => {
         onSendMessage={handleSendMessage}
         onTyping={handleTyping}
         isConnected={isConnected}
+        replyingTo={replyState.replyingTo}
+        onClearReply={clearReply}
       />
 
       {/* Context Menu */}

@@ -79,6 +79,7 @@ export const MessagesProvider: React.FC<MessagesProviderProps> = ({ children }) 
     hasMore: messagesHook.hasMoreMessages,
     sendingMessageId: messagesHook.sendingMessageId,
     failedMessages: messagesHook.failedMessages,
+    replyState: messagesHook.replyState,
     sendMessage: messagesHook.sendMessage,
     retryFailedMessage: messagesHook.retryFailedMessage,
     removeFailedMessage: messagesHook.removeFailedMessage,
@@ -89,6 +90,8 @@ export const MessagesProvider: React.FC<MessagesProviderProps> = ({ children }) 
     loadMessages: messagesHook.loadMessages,
     loadMoreMessages: messagesHook.loadMoreMessages,
     markAsRead: messagesHook.markAsRead,
+    setReplyToMessage: messagesHook.setReplyToMessage,
+    clearReply: messagesHook.clearReply,
     
     // Typing state and actions
     typingUsers: typingHook.typingUsers,

@@ -5,6 +5,18 @@ export interface Message {
   content?: string;
   data?: any;
   reply_to?: string;
+  reply_data?: {
+    id: string;
+    content: string;
+    author_id: string;
+    author: {
+      id: string;
+      username: string;
+      full_name?: string;
+      avatar_url?: string;
+    };
+    created_at: string;
+  };
   thread_id?: string;
   message_type: 'text' | 'image' | 'file' | 'system';
   created_at: string;
@@ -35,6 +47,11 @@ export interface Message {
   }[];
 }
 
+export interface ReplyState {
+  isReplying: boolean;
+  replyingTo: Message | null;
+}
+
 export interface TypingUser {
   user_id: string;
   username: string;
@@ -49,6 +66,7 @@ export interface MessagesContextType {
   typingUsers: TypingUser[];
   sendingMessageId: string | null;
   failedMessages: Set<string>;
+  replyState: ReplyState;
   sendMessage: (groupId: string, content: string, replyTo?: string) => Promise<boolean>;
   retryFailedMessage: (tempId: string) => Promise<boolean>;
   removeFailedMessage: (tempId: string) => void;
@@ -61,4 +79,6 @@ export interface MessagesContextType {
   markAsRead: (groupId: string) => Promise<void>;
   startTyping: (groupId: string) => Promise<void>;
   stopTyping: (groupId: string) => Promise<void>;
+  setReplyToMessage: (message: Message | null) => void;
+  clearReply: () => void;
 } 

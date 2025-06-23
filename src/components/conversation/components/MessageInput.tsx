@@ -5,11 +5,17 @@ import {
   IconButton,
   Paper,
   useTheme,
+  Typography,
+  Divider,
 } from '@mui/material';
 import {
   Send as SendIcon,
   EmojiEmotions as EmojiEmotionsIcon,
+  Close as CloseIcon,
+  Reply as ReplyIcon,
 } from '@mui/icons-material';
+
+import { Message } from '@/contexts/messages/MessagesContext';
 
 interface MessageInputProps {
   newMessage: string;
@@ -17,6 +23,8 @@ interface MessageInputProps {
   onSendMessage: () => void;
   onTyping: () => void;
   isConnected: boolean;
+  replyingTo?: Message | null;
+  onClearReply?: () => void;
 }
 
 export const MessageInput: React.FC<MessageInputProps> = ({
@@ -25,6 +33,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   onSendMessage,
   onTyping,
   isConnected,
+  replyingTo,
+  onClearReply,
 }) => {
   const theme = useTheme();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -50,14 +60,59 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   return (
     <Paper
       sx={{
-        p: 2,
         borderRadius: 0,
         borderTop: 1,
         borderColor: 'divider',
         backgroundColor: 'background.paper',
       }}
     >
-      <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end' }}>
+      {/* Reply Preview */}
+      {replyingTo && (
+        <Box sx={{ p: 2, pb: 0 }}>
+          <Paper
+            sx={{
+              p: 1.5,
+              bgcolor: 'action.hover',
+              borderLeft: 3,
+              borderColor: 'primary.main',
+              borderRadius: 1,
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <ReplyIcon sx={{ fontSize: '0.9rem', color: 'primary.main' }} />
+                <Typography variant="caption" fontWeight={600} color="primary.main">
+                  Replying to {replyingTo.author?.username || 'Unknown'}
+                </Typography>
+              </Box>
+              {onClearReply && (
+                <IconButton
+                  size="small"
+                  onClick={onClearReply}
+                  sx={{ p: 0.25 }}
+                >
+                  <CloseIcon sx={{ fontSize: '0.8rem' }} />
+                </IconButton>
+              )}
+            </Box>
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                color: 'text.secondary',
+                fontStyle: 'italic',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                maxWidth: '100%'
+              }}
+            >
+              {replyingTo.content || '[No content]'}
+            </Typography>
+          </Paper>
+        </Box>
+      )}
+
+      <Box sx={{ p: 2, display: 'flex', gap: 1, alignItems: 'flex-end' }}>
         {/* Emoji Button */}
         <IconButton
           size="small"

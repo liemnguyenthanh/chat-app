@@ -9,11 +9,20 @@ import {
   IconButton,
   CircularProgress,
   Tooltip,
-  Fade,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  Divider,
 } from '@mui/material';
 import {
   MoreVert as MoreVertIcon,
   Reply as ReplyIcon,
+  ContentCopy as ContentCopyIcon,
+  PushPin as PushPinIcon,
+  Forward as ForwardIcon,
+  CheckBox as SelectIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { Message } from '@/contexts/messages/MessagesContext';
 import { format } from 'date-fns';
@@ -33,6 +42,11 @@ interface MessageItemProps {
   onRetryFailedMessage: (tempId: string) => void;
   onRemoveFailedMessage: (tempId: string) => void;
   onReplyToMessage: (message: Message) => void;
+  onCopyMessage?: (message: Message) => void;
+  onPinMessage?: (message: Message) => void;
+  onForwardMessage?: (message: Message) => void;
+  onSelectMessage?: (message: Message) => void;
+  onDeleteMessage?: (message: Message) => void;
 }
 
 export const MessageItem: React.FC<MessageItemProps> = ({
@@ -50,9 +64,14 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   onRetryFailedMessage,
   onRemoveFailedMessage,
   onReplyToMessage,
+  onCopyMessage,
+  onPinMessage,
+  onForwardMessage,
+  onSelectMessage,
+  onDeleteMessage,
 }) => {
   const user = useUser();
-  const [showQuickReactions, setShowQuickReactions] = useState(false);
+  const [contextMenuAnchor, setContextMenuAnchor] = useState<null | HTMLElement>(null);
   const isOwnMessage = message.author_id === user?.id;
 
   const formatTime = (timestamp: string) => {
@@ -92,6 +111,39 @@ export const MessageItem: React.FC<MessageItemProps> = ({
     }
   };
 
+  const handleContextMenu = (event: React.MouseEvent<HTMLElement>) => {
+    event.preventDefault();
+    setContextMenuAnchor(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setContextMenuAnchor(null);
+  };
+
+  const handleMenuItemClick = (action: string) => {
+    switch (action) {
+      case 'reply':
+        onReplyToMessage(message);
+        break;
+      case 'copy':
+        onCopyMessage?.(message);
+        break;
+      case 'pin':
+        onPinMessage?.(message);
+        break;
+      case 'forward':
+        onForwardMessage?.(message);
+        break;
+      case 'select':
+        onSelectMessage?.(message);
+        break;
+      case 'delete':
+        onDeleteMessage?.(message);
+        break;
+    }
+    handleMenuClose();
+  };
+
   const quickReactionEmojis = ['👍', '❤️', '😂', '😮', '😢', '😡'];
 
   return (
@@ -104,8 +156,6 @@ export const MessageItem: React.FC<MessageItemProps> = ({
         mb: showAvatar ? 2 : 0.25, // Tighter spacing for grouped messages
         position: 'relative',
       }}
-      onMouseEnter={() => setShowQuickReactions(true)}
-      onMouseLeave={() => setShowQuickReactions(false)}
     >
       {!isOwnMessage && showAvatar && (
         <Avatar sx={{ width: 32, height: 32, bgcolor: "secondary.main" }}>
@@ -187,6 +237,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
               boxShadow: (theme) => theme.shadows[2],
             }
           }}
+          onContextMenu={handleContextMenu}
         >
           {isEditing ? (
             <Box>
@@ -272,21 +323,20 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                 </Box>
               )}
 
-              {isOwnMessage && (
-                <IconButton
-                  size="small"
-                  sx={{ 
-                    position: 'absolute', 
-                    top: 4, 
-                    right: 4,
-                    opacity: 0.7,
-                    '&:hover': { opacity: 1 }
-                  }}
-                  onClick={(e) => onMessageMenu(e, message.id)}
-                >
-                  <MoreVertIcon fontSize="small" />
-                </IconButton>
-              )}
+              {/* More options button for all messages */}
+              <IconButton
+                size="small"
+                sx={{ 
+                  position: 'absolute', 
+                  top: 4, 
+                  right: 4,
+                  opacity: 0.7,
+                  '&:hover': { opacity: 1 }
+                }}
+                onClick={handleContextMenu}
+              >
+                <MoreVertIcon fontSize="small" />
+              </IconButton>
             </>
           )}
         </Paper>
@@ -330,71 +380,88 @@ export const MessageItem: React.FC<MessageItemProps> = ({
             </Typography>
           </Box>
         )}
-        
-        {/* Quick Reactions (show on hover) */}
-        <Fade in={showQuickReactions && !isEditing}>
-          <Box sx={{ 
-            position: 'absolute',
-            top: -16,
-            [isOwnMessage ? 'right' : 'left']: 8,
-            display: 'flex',
-            gap: 0.25,
-            bgcolor: 'background.paper',
-            borderRadius: '20px',
-            p: 0.5,
-            boxShadow: (theme) => theme.shadows[8],
-            border: '1px solid',
-            borderColor: 'divider',
-            zIndex: 10,
-          }}>
-            {/* Reply Button */}
-            <Tooltip title="Reply">
-              <IconButton
-                size="small"
-                onClick={() => onReplyToMessage(message)}
-                sx={{ 
-                  p: 0.5,
-                  width: 28,
-                  height: 28,
-                  transition: 'transform 0.1s ease-in-out',
-                  '&:hover': {
-                    transform: 'scale(1.3)',
-                    bgcolor: 'action.hover',
-                  }
-                }}
-              >
-                <ReplyIcon sx={{ fontSize: '0.8rem' }} />
-              </IconButton>
-            </Tooltip>
-            
-            {/* Emoji Reactions */}
-            {quickReactionEmojis.map((emoji) => (
-              <IconButton
-                key={emoji}
-                size="small"
-                onClick={() => onReaction(message.id, emoji)}
-                sx={{ 
-                  fontSize: '0.9rem', 
-                  p: 0.5,
-                  width: 28,
-                  height: 28,
-                  transition: 'transform 0.1s ease-in-out',
-                  '&:hover': {
-                    transform: 'scale(1.3)',
-                    bgcolor: 'action.hover',
-                  }
-                }}
-              >
-                {emoji}
-              </IconButton>
-            ))}
-          </Box>
-        </Fade>
       </Box>
       
       {isOwnMessage && !showAvatar && (
         <Box sx={{ width: 32 }} />
       )}
+
+      {/* Context Menu */}
+      <Menu
+        anchorEl={contextMenuAnchor}
+        open={Boolean(contextMenuAnchor)}
+        onClose={handleMenuClose}
+        PaperProps={{
+          sx: {
+            bgcolor: 'rgba(0, 0, 0, 0.9)',
+            color: 'white',
+            minWidth: 160,
+            borderRadius: 2,
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+            '& .MuiMenuItem-root': {
+              py: 1.5,
+              px: 2,
+              fontSize: '0.875rem',
+              '&:hover': {
+                bgcolor: 'rgba(255, 255, 255, 0.1)',
+              },
+            },
+            '& .MuiListItemIcon-root': {
+              color: 'white',
+              minWidth: 36,
+            },
+          },
+        }}
+        transformOrigin={{ horizontal: 'left', vertical: 'top' }}
+        anchorOrigin={{ horizontal: 'left', vertical: 'bottom' }}
+      >
+        <MenuItem onClick={() => handleMenuItemClick('reply')}>
+          <ListItemIcon>
+            <ReplyIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Reply</ListItemText>
+        </MenuItem>
+        
+        <MenuItem onClick={() => handleMenuItemClick('copy')}>
+          <ListItemIcon>
+            <ContentCopyIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Copy Text</ListItemText>
+        </MenuItem>
+        
+        <MenuItem onClick={() => handleMenuItemClick('pin')}>
+          <ListItemIcon>
+            <PushPinIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Pin</ListItemText>
+        </MenuItem>
+        
+        <MenuItem onClick={() => handleMenuItemClick('forward')}>
+          <ListItemIcon>
+            <ForwardIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Forward</ListItemText>
+        </MenuItem>
+        
+        <MenuItem onClick={() => handleMenuItemClick('select')}>
+          <ListItemIcon>
+            <SelectIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Select</ListItemText>
+        </MenuItem>
+        
+        <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.2)' }} />
+        
+        <MenuItem 
+          onClick={() => handleMenuItemClick('delete')}
+          sx={{ color: '#ff6b6b !important' }}
+        >
+          <ListItemIcon>
+            <DeleteIcon fontSize="small" sx={{ color: '#ff6b6b !important' }} />
+          </ListItemIcon>
+          <ListItemText>Delete</ListItemText>
+        </MenuItem>
+      </Menu>
     </Box>
   );
 }; 

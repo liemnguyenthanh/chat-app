@@ -1,4 +1,4 @@
-import { Room } from "@/components/RoomList";
+import { Room } from "@/components/rooms";
 
 export const mockRooms: Room[] = [
   {

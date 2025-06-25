@@ -1,4 +1,4 @@
-import EmailAuthForm from "@/components/EmailAuthForm";
+import { EmailAuthForm } from "@/components/auth";
 import { Container, Box } from "@mui/material";
 import { useSession } from "@supabase/auth-helpers-react";
 import { useRouter } from "next/router";

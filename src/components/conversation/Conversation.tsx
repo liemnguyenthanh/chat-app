@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useUser } from "@supabase/auth-helpers-react";
-import { Box, Menu, MenuItem } from "@mui/material";
+import { Box } from "@mui/material";
 import {
   useMessagesContext,
   Message,
@@ -8,9 +8,9 @@ import {
 import { format } from "date-fns";
 
 // Import sub-components
-import { MessageList } from "./conversation/components/MessageList";
-import { TypingIndicator } from "./conversation/components/TypingIndicator";
-import { MessageInput } from "./conversation/components/MessageInput";
+import { MessageList } from "./components/MessageList";
+import { TypingIndicator } from "./components/TypingIndicator";
+import { MessageInput } from "./components/MessageInput";
 
 interface ConversationProps {
   roomId: string;
@@ -18,7 +18,6 @@ interface ConversationProps {
 }
 
 const Conversation: React.FC<ConversationProps> = ({ roomId, roomName }) => {
-  const user = useUser();
   const {
     messages,
     loading,
@@ -45,10 +44,6 @@ const Conversation: React.FC<ConversationProps> = ({ roomId, roomName }) => {
   const [newMessage, setNewMessage] = useState("");
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState("");
-  const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
-  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(
-    null
-  );
   const [lastMessageTime, setLastMessageTime] = useState<string>("");
   const [isConnected, setIsConnected] = useState(true);
 
@@ -122,31 +117,8 @@ const Conversation: React.FC<ConversationProps> = ({ roomId, roomName }) => {
     event: React.MouseEvent<HTMLElement>,
     messageId: string
   ) => {
-    setMenuAnchorEl(event.currentTarget);
-    setSelectedMessageId(messageId);
-  };
-
-  const handleMenuClose = () => {
-    setMenuAnchorEl(null);
-    setSelectedMessageId(null);
-  };
-
-  const handleStartEdit = () => {
-    if (!selectedMessageId) return;
-
-    const message = messages.find((m: Message) => m.id === selectedMessageId);
-    if (message && message.content) {
-      setEditingMessageId(selectedMessageId);
-      setEditingContent(message.content);
-    }
-    handleMenuClose();
-  };
-
-  const handleDeleteMessage = async () => {
-    if (!selectedMessageId) return;
-
-    await deleteMessage(selectedMessageId);
-    handleMenuClose();
+    // This is now handled by the MessageItem component's context menu
+    // Keep this for backward compatibility but it's no longer used
   };
 
   const handleReaction = async (messageId: string, emoji: string) => {
@@ -163,6 +135,38 @@ const Conversation: React.FC<ConversationProps> = ({ roomId, roomName }) => {
     if (hasMore && !loading) {
       loadMoreMessages();
     }
+  };
+
+  // New message action handlers
+  const handleCopyMessage = async (message: Message) => {
+    if (message.content) {
+      try {
+        await navigator.clipboard.writeText(message.content);
+        // Could add a toast notification here
+        console.log('Message copied to clipboard');
+      } catch (err) {
+        console.error('Failed to copy message:', err);
+      }
+    }
+  };
+
+  const handlePinMessage = async (message: Message) => {
+    // TODO: Implement pin functionality
+    console.log('Pin message:', message.id);
+  };
+
+  const handleForwardMessage = async (message: Message) => {
+    // TODO: Implement forward functionality
+    console.log('Forward message:', message.id);
+  };
+
+  const handleSelectMessage = async (message: Message) => {
+    // TODO: Implement select functionality
+    console.log('Select message:', message.id);
+  };
+
+  const handleDeleteMessage = async (message: Message) => {
+    await deleteMessage(message.id);
   };
 
   return (
@@ -192,6 +196,11 @@ const Conversation: React.FC<ConversationProps> = ({ roomId, roomName }) => {
         onRemoveFailedMessage={removeFailedMessage}
         onLoadMore={handleLoadMore}
         onReplyToMessage={setReplyToMessage}
+        onCopyMessage={handleCopyMessage}
+        onPinMessage={handlePinMessage}
+        onForwardMessage={handleForwardMessage}
+        onSelectMessage={handleSelectMessage}
+        onDeleteMessage={handleDeleteMessage}
       />
 
       {/* Typing Indicator */}
@@ -207,20 +216,6 @@ const Conversation: React.FC<ConversationProps> = ({ roomId, roomName }) => {
         replyingTo={replyState.replyingTo}
         onClearReply={clearReply}
       />
-
-      {/* Context Menu */}
-      <Menu
-        anchorEl={menuAnchorEl}
-        open={Boolean(menuAnchorEl)}
-        onClose={handleMenuClose}
-        transformOrigin={{ horizontal: "right", vertical: "top" }}
-        anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
-      >
-        <MenuItem onClick={handleStartEdit}>Edit</MenuItem>
-        <MenuItem onClick={handleDeleteMessage} sx={{ color: "error.main" }}>
-          Delete
-        </MenuItem>
-      </Menu>
     </Box>
   );
 };

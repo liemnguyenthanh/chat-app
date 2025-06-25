@@ -1,6 +1,8 @@
 // Components
 export { UserSearchField } from './components/UserSearchField';
 export { InviteMessageField } from './components/InviteMessageField';
+export { default as InvitationsPanel } from './components/InvitationsPanel';
+export { default as InviteUserModal } from './components/InviteUserModal';
 
 // Hooks
 export { useUserSearch } from './hooks/useUserSearch';

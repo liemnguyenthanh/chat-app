@@ -6,15 +6,15 @@ import { useRoomsContext } from "@/contexts/RoomsContext";
 import { Box, Toolbar } from "@mui/material";
 
 // Import extracted components
-import { AppHeader } from "./layout/components/AppHeader";
-import { UserMenu } from "./layout/components/UserMenu";
-import { Sidebar } from "./layout/components/Sidebar";
-import { CreateRoomDialog } from "./layout/components/CreateRoomDialog";
-import { CreateRoomFab } from "./layout/components/CreateRoomFab";
-import { ModalsManager } from "./layout/components/ModalsManager";
+import { AppHeader } from "./components/AppHeader";
+import { UserMenu } from "./components/UserMenu";
+import { Sidebar } from "./components/Sidebar";
+import { CreateRoomDialog } from "./components/CreateRoomDialog";
+import { CreateRoomFab } from "./components/CreateRoomFab";
+import { ModalsManager } from "./components/ModalsManager";
 
 // Import custom hook
-import { useCreateRoom } from "./layout/hooks/useCreateRoom";
+import { useCreateRoom } from "./hooks/useCreateRoom";
 
 interface ChatLayoutProps {
   children: React.ReactNode;

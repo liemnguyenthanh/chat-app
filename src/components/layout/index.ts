@@ -1,3 +1,6 @@
+// Main layout component
+export { default as ChatLayout } from './ChatLayout';
+
 // Export all layout sub-components
 export { AppHeader } from './components/AppHeader';
 export { UserMenu } from './components/UserMenu';

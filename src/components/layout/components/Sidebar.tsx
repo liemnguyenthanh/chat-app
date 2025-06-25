@@ -5,7 +5,7 @@ import {
   Box,
   Typography,
 } from '@mui/material';
-import RoomList, { Room } from '@/components/RoomList';
+import { RoomList, Room } from '@/components/rooms';
 
 const drawerWidth = 280;
 

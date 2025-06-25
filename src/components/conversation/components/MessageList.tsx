@@ -26,6 +26,11 @@ interface MessageListProps {
   onRemoveFailedMessage: (tempId: string) => void;
   onLoadMore: () => void;
   onReplyToMessage: (message: Message) => void;
+  onCopyMessage?: (message: Message) => void;
+  onPinMessage?: (message: Message) => void;
+  onForwardMessage?: (message: Message) => void;
+  onSelectMessage?: (message: Message) => void;
+  onDeleteMessage?: (message: Message) => void;
 }
 
 export const MessageList: React.FC<MessageListProps> = ({
@@ -45,6 +50,11 @@ export const MessageList: React.FC<MessageListProps> = ({
   onRemoveFailedMessage,
   onLoadMore,
   onReplyToMessage,
+  onCopyMessage,
+  onPinMessage,
+  onForwardMessage,
+  onSelectMessage,
+  onDeleteMessage,
 }) => {
   const user = useUser();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -156,6 +166,11 @@ export const MessageList: React.FC<MessageListProps> = ({
               onRetryFailedMessage={onRetryFailedMessage}
               onRemoveFailedMessage={onRemoveFailedMessage}
               onReplyToMessage={onReplyToMessage}
+              onCopyMessage={onCopyMessage}
+              onPinMessage={onPinMessage}
+              onForwardMessage={onForwardMessage}
+              onSelectMessage={onSelectMessage}
+              onDeleteMessage={onDeleteMessage}
             />
         ))
       )}

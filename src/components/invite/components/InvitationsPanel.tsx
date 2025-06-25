@@ -288,4 +288,4 @@ const InvitationsPanel: React.FC<InvitationsPanelProps> = ({ groupId }) => {
   );
 };
 
-export default InvitationsPanel;
+export default InvitationsPanel; 

@@ -1,3 +1,6 @@
+// Main component
+export { default as ProfileUpdateModal } from './ProfileUpdateModal';
+
 // Components
 export { AvatarUploader } from './components/AvatarUploader';
 export { ProfileFormFields } from './components/ProfileFormFields';

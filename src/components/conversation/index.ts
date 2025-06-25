@@ -1,5 +1,8 @@
+// Main component (default export)
+export { default } from './Conversation';
+export { default as Conversation } from './Conversation';
+
 // Components
-export { ConnectionStatus } from './components/ConnectionStatus';
 export { MessageInput } from './components/MessageInput';
 export { MessageItem } from './components/MessageItem';
 export { MessageBubble } from './components/MessageBubble';

@@ -23,6 +23,11 @@ interface MessageGroupProps {
   onRetryFailedMessage: (tempId: string) => void;
   onRemoveFailedMessage: (tempId: string) => void;
   onReplyToMessage: (message: Message) => void;
+  onCopyMessage?: (message: Message) => void;
+  onPinMessage?: (message: Message) => void;
+  onForwardMessage?: (message: Message) => void;
+  onSelectMessage?: (message: Message) => void;
+  onDeleteMessage?: (message: Message) => void;
 }
 
 export const MessageGroup: React.FC<MessageGroupProps> = ({
@@ -40,6 +45,11 @@ export const MessageGroup: React.FC<MessageGroupProps> = ({
   onRetryFailedMessage,
   onRemoveFailedMessage,
   onReplyToMessage,
+  onCopyMessage,
+  onPinMessage,
+  onForwardMessage,
+  onSelectMessage,
+  onDeleteMessage,
 }) => {
   const user = useUser();
 
@@ -133,6 +143,11 @@ export const MessageGroup: React.FC<MessageGroupProps> = ({
               onRetryFailedMessage={onRetryFailedMessage}
               onRemoveFailedMessage={onRemoveFailedMessage}
               onReplyToMessage={onReplyToMessage}
+              onCopyMessage={onCopyMessage}
+              onPinMessage={onPinMessage}
+              onForwardMessage={onForwardMessage}
+              onSelectMessage={onSelectMessage}
+              onDeleteMessage={onDeleteMessage}
             />
           ))}
         </Box>

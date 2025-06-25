@@ -7,7 +7,7 @@ import React, {
   useCallback,
 } from "react";
 import { useSupabaseClient, useUser } from "@supabase/auth-helpers-react";
-import { Room } from "@/components/RoomList";
+import { Room } from "@/components/rooms";
 
 interface RoomsContextType {
   rooms: Room[];

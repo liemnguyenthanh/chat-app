@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { Typography, Box, Paper, Button, Stack } from "@mui/material";
 import { Chat as ChatIcon, Add as AddIcon, People as PeopleIcon } from "@mui/icons-material";
-import ChatLayout from "@/components/ChatLayout";
-import RequireAuth from "@/components/RequireAuth";
+import { ChatLayout } from "@/components/layout";
+import { RequireAuth } from "@/components/auth";
 import Link from "next/link";
 
 export default function Home() {

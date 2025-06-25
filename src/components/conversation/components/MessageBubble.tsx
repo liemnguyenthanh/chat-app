@@ -9,11 +9,21 @@ import {
   CircularProgress,
   Tooltip,
   Fade,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  Divider,
 } from '@mui/material';
 import {
   MoreVert as MoreVertIcon,
   Add as AddIcon,
   Reply as ReplyIcon,
+  ContentCopy as ContentCopyIcon,
+  PushPin as PushPinIcon,
+  Forward as ForwardIcon,
+  CheckBox as SelectIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { Message } from '@/contexts/messages/MessagesContext';
 
@@ -33,6 +43,11 @@ interface MessageBubbleProps {
   onRetryFailedMessage: (tempId: string) => void;
   onRemoveFailedMessage: (tempId: string) => void;
   onReplyToMessage: (message: Message) => void;
+  onCopyMessage?: (message: Message) => void;
+  onPinMessage?: (message: Message) => void;
+  onForwardMessage?: (message: Message) => void;
+  onSelectMessage?: (message: Message) => void;
+  onDeleteMessage?: (message: Message) => void;
 }
 
 export const MessageBubble: React.FC<MessageBubbleProps> = ({
@@ -51,24 +66,16 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   onRetryFailedMessage,
   onRemoveFailedMessage,
   onReplyToMessage,
+  onCopyMessage,
+  onPinMessage,
+  onForwardMessage,
+  onSelectMessage,
+  onDeleteMessage,
 }) => {
   const user = useUser();
   const [isHovering, setIsHovering] = useState(false);
-  const [showQuickReactions, setShowQuickReactions] = useState(false);
+  const [contextMenuAnchor, setContextMenuAnchor] = useState<null | HTMLElement>(null);
   const isOwnMessage = message.author_id === user?.id;
-
-  // Show reactions only after hovering for longer
-  useEffect(() => {
-    let timeout: NodeJS.Timeout;
-    if (isHovering && !isEditing) {
-      timeout = setTimeout(() => {
-        setShowQuickReactions(true);
-      }, 1000); // Show after 1 second hover to avoid conflicts
-    } else {
-      setShowQuickReactions(false);
-    }
-    return () => clearTimeout(timeout);
-  }, [isHovering, isEditing]);
 
   const getMessageColor = () => {
     return isOwnMessage ? 'primary.main' : 'grey.100';
@@ -83,22 +90,49 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     const tightRadius = 4;
     
     if (isOwnMessage) {
-      // Own messages: rounded on left, tight on bottom-right when not last
       return `${baseRadius}px ${baseRadius}px ${isLast ? baseRadius : tightRadius}px ${baseRadius}px`;
     } else {
-      // Other messages: rounded on right, tight on bottom-left when not last  
       return `${baseRadius}px ${baseRadius}px ${baseRadius}px ${isLast ? baseRadius : tightRadius}px`;
     }
+  };
+
+  const handleContextMenu = (event: React.MouseEvent<HTMLElement>) => {
+    event.preventDefault();
+    setContextMenuAnchor(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setContextMenuAnchor(null);
+  };
+
+  const handleMenuItemClick = (action: string) => {
+    switch (action) {
+      case 'reply':
+        onReplyToMessage(message);
+        break;
+      case 'copy':
+        onCopyMessage?.(message);
+        break;
+      case 'pin':
+        onPinMessage?.(message);
+        break;
+      case 'forward':
+        onForwardMessage?.(message);
+        break;
+      case 'select':
+        onSelectMessage?.(message);
+        break;
+      case 'delete':
+        onDeleteMessage?.(message);
+        break;
+    }
+    handleMenuClose();
   };
 
   const quickReactionEmojis = ['👍', '❤️', '😂'];
 
   return (
-    <Box
-      sx={{ position: 'relative' }}
-      onMouseEnter={() => setIsHovering(true)}
-      onMouseLeave={() => setIsHovering(false)}
-    >
+    <Box sx={{ position: 'relative' }}>
       <Paper
         sx={{
           p: 1.5,
@@ -118,6 +152,9 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             boxShadow: (theme) => theme.shadows[2],
           }
         }}
+        onMouseEnter={() => setIsHovering(true)}
+        onMouseLeave={() => setIsHovering(false)}
+        onContextMenu={handleContextMenu}
       >
         {isEditing ? (
           <Box>
@@ -244,22 +281,20 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
               </Box>
             )}
 
-            {/* Menu button for own messages */}
-            {isOwnMessage && (
-              <IconButton
-                size="small"
-                sx={{ 
-                  position: 'absolute', 
-                  top: 4, 
-                  right: 4,
-                  opacity: 0.7,
-                  '&:hover': { opacity: 1 }
-                }}
-                onClick={(e) => onMessageMenu(e, message.id)}
-              >
-                <MoreVertIcon fontSize="small" />
-              </IconButton>
-            )}
+            {/* More options button */}
+            <IconButton
+              size="small"
+              sx={{ 
+                position: 'absolute', 
+                top: 4, 
+                right: 4,
+                opacity: isHovering ? 1 : 0,
+                transition: 'opacity 0.2s ease-in-out',
+              }}
+              onClick={handleContextMenu}
+            >
+              <MoreVertIcon fontSize="small" />
+            </IconButton>
           </>
         )}
       </Paper>
@@ -270,8 +305,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           display: 'flex', 
           gap: 0.5, 
           mt: 0.5, 
-          flexWrap: 'wrap',
-          justifyContent: isOwnMessage ? 'flex-end' : 'flex-start'
+          flexWrap: 'wrap'
         }}>
           {message.reactions.map((reaction) => (
             <Chip
@@ -281,155 +315,96 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
               variant={reaction.users.includes(user?.id || '') ? 'filled' : 'outlined'}
               onClick={() => onReaction(message.id, reaction.emoji)}
               sx={{ 
-                height: 20, 
+                height: 22, 
                 fontSize: '0.7rem',
-                '& .MuiChip-label': { px: 0.75, py: 0 },
-                borderRadius: '10px',
+                '& .MuiChip-label': { px: 1 },
                 transition: 'all 0.2s ease-in-out',
                 '&:hover': {
-                  transform: 'scale(1.05)',
-                  boxShadow: (theme) => theme.shadows[1],
+                  transform: 'scale(1.1)',
+                  boxShadow: (theme) => theme.shadows[2],
                 }
               }}
             />
           ))}
         </Box>
       )}
-      
-      {/* Primary Quick Actions (immediate on hover) */}
-      {isHovering && !isEditing && !showQuickReactions && (
-        <Fade in={true}>
-          <Box sx={{ 
-            position: 'absolute',
-            top: -12,
-            [isOwnMessage ? 'left' : 'right']: -4,
-            display: 'flex',
-            gap: 0.5,
-            bgcolor: 'background.paper',
-            borderRadius: '16px',
-            p: 0.5,
-            boxShadow: (theme) => theme.shadows[4],
-            border: '1px solid',
-            borderColor: 'divider',
-            zIndex: 15,
-          }}>
-            {/* Reply Button - Always first/primary action */}
-            <Tooltip title="Reply">
-              <IconButton
-                size="small"
-                onClick={() => onReplyToMessage(message)}
-                sx={{ 
-                  width: 28,
-                  height: 28,
-                  '&:hover': {
-                    bgcolor: 'primary.light',
-                    color: 'primary.contrastText',
-                    transform: 'scale(1.1)',
-                  }
-                }}
-              >
-                <ReplyIcon sx={{ fontSize: '0.85rem' }} />
-              </IconButton>
-            </Tooltip>
-            
-            {/* Add Reaction Button */}
-            <Tooltip title="Add reaction">
-              <IconButton
-                size="small"
-                onClick={() => onReaction(message.id, '👍')}
-                sx={{ 
-                  width: 28,
-                  height: 28,
-                  '&:hover': {
-                    bgcolor: 'secondary.light',
-                    transform: 'scale(1.1)',
-                  }
-                }}
-              >
-                <AddIcon sx={{ fontSize: '0.85rem' }} />
-              </IconButton>
-            </Tooltip>
-          </Box>
-        </Fade>
-      )}
-      
-      {/* Extended Reactions (long hover) */}
-      {showQuickReactions && (
-        <Fade in={true}>
-          <Box sx={{ 
-            position: 'absolute',
-            top: -12,
-            [isOwnMessage ? 'left' : 'right']: -4,
-            display: 'flex',
-            gap: 0.25,
-            bgcolor: 'background.paper',
-            borderRadius: '20px',
-            p: 0.5,
-            boxShadow: (theme) => theme.shadows[8],
-            border: '1px solid',
-            borderColor: 'divider',
-            zIndex: 25,
-          }}>
-            {/* Reply Button - Still accessible */}
-            <Tooltip title="Reply">
-              <IconButton
-                size="small"
-                onClick={() => onReplyToMessage(message)}
-                sx={{ 
-                  width: 28,
-                  height: 28,
-                  bgcolor: 'primary.main',
-                  color: 'primary.contrastText',
-                  '&:hover': {
-                    bgcolor: 'primary.dark',
-                    transform: 'scale(1.1)',
-                  }
-                }}
-              >
-                <ReplyIcon sx={{ fontSize: '0.8rem' }} />
-              </IconButton>
-            </Tooltip>
-            
-            {/* Emoji Reactions */}
-            {quickReactionEmojis.map((emoji) => (
-              <IconButton
-                key={emoji}
-                size="small"
-                onClick={() => onReaction(message.id, emoji)}
-                sx={{ 
-                  fontSize: '0.9rem', 
-                  width: 28,
-                  height: 28,
-                  '&:hover': {
-                    transform: 'scale(1.2)',
-                    bgcolor: 'action.hover',
-                  }
-                }}
-              >
-                {emoji}
-              </IconButton>
-            ))}
-            
-            {/* Add More Reaction Button */}
-            <Tooltip title="More reactions">
-              <IconButton
-                size="small"
-                onClick={() => onReaction(message.id, '👍')}
-                sx={{ 
-                  width: 28,
-                  height: 28,
-                  '&:hover': {
-                    bgcolor: 'action.hover',
-                    transform: 'scale(1.1)',
-                  }
-                }}
-              >
-                <AddIcon sx={{ fontSize: '0.8rem' }} />
-              </IconButton>
-            </Tooltip>
-          </Box>
-        </Fade>
-      )}
+
+      {/* Context Menu */}
+      <Menu
+        anchorEl={contextMenuAnchor}
+        open={Boolean(contextMenuAnchor)}
+        onClose={handleMenuClose}
+        PaperProps={{
+          sx: {
+            bgcolor: 'rgba(0, 0, 0, 0.9)',
+            color: 'white',
+            minWidth: 160,
+            borderRadius: 2,
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+            '& .MuiMenuItem-root': {
+              py: 1.5,
+              px: 2,
+              fontSize: '0.875rem',
+              '&:hover': {
+                bgcolor: 'rgba(255, 255, 255, 0.1)',
+              },
+            },
+            '& .MuiListItemIcon-root': {
+              color: 'white',
+              minWidth: 36,
+            },
+          },
+        }}
+        transformOrigin={{ horizontal: 'left', vertical: 'top' }}
+        anchorOrigin={{ horizontal: 'left', vertical: 'bottom' }}
+      >
+        <MenuItem onClick={() => handleMenuItemClick('reply')}>
+          <ListItemIcon>
+            <ReplyIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Reply</ListItemText>
+        </MenuItem>
+        
+        <MenuItem onClick={() => handleMenuItemClick('copy')}>
+          <ListItemIcon>
+            <ContentCopyIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Copy Text</ListItemText>
+        </MenuItem>
+        
+        <MenuItem onClick={() => handleMenuItemClick('pin')}>
+          <ListItemIcon>
+            <PushPinIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Pin</ListItemText>
+        </MenuItem>
+        
+        <MenuItem onClick={() => handleMenuItemClick('forward')}>
+          <ListItemIcon>
+            <ForwardIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Forward</ListItemText>
+        </MenuItem>
+        
+        <MenuItem onClick={() => handleMenuItemClick('select')}>
+          <ListItemIcon>
+            <SelectIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Select</ListItemText>
+        </MenuItem>
+        
+        <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.2)' }} />
+        
+        <MenuItem 
+          onClick={() => handleMenuItemClick('delete')}
+          sx={{ color: '#ff6b6b !important' }}
+        >
+          <ListItemIcon>
+            <DeleteIcon fontSize="small" sx={{ color: '#ff6b6b !important' }} />
+          </ListItemIcon>
+          <ListItemText>Delete</ListItemText>
+        </MenuItem>
+      </Menu>
     </Box>
   );
 }; 

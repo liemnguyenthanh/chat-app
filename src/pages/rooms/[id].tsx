@@ -1,8 +1,8 @@
 import React from "react";
 import { useRouter } from "next/router";
-import Conversation from "@/components/Conversation";
-import ChatLayout from "@/components/ChatLayout";
-import RequireAuth from "@/components/RequireAuth";
+import Conversation from "@/components/conversation";
+import { ChatLayout } from "@/components/layout";
+import { RequireAuth } from "@/components/auth";
 import { useRoomsContext } from "@/contexts/RoomsContext";
 import {
   ConversationHeaderSkeleton,

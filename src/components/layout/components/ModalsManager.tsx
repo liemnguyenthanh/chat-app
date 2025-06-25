@@ -6,9 +6,8 @@ import {
   DialogActions,
   Button,
 } from '@mui/material';
-import ProfileUpdateModal from '@/components/ProfileUpdateModal';
-import InviteUserModal from '@/components/InviteUserModal';
-import InvitationsPanel from '@/components/InvitationsPanel';
+import { InvitationsPanel, InviteUserModal } from '@/components/invite';
+import { ProfileUpdateModal } from '@/components/profile';
 
 interface ModalsManagerProps {
   // Profile Modal

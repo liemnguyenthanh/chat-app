@@ -86,7 +86,7 @@ const RoomList: React.FC<RoomListProps> = ({ rooms, loading = false }) => {
             <ListItemButton
               component="a"
               sx={{
-                borderRadius: 2,
+                borderRadius: 0,
                 mb: 0.5,
                 bgcolor: isActive ? "primary.main" : "transparent",
                 color: isActive ? "primary.contrastText" : "inherit",
@@ -106,8 +106,8 @@ const RoomList: React.FC<RoomListProps> = ({ rooms, loading = false }) => {
                     sx={{
                       width: 40,
                       height: 40,
-                      bgcolor: isActive ? "rgba(255,255,255,0.2)" : "primary.light",
-                      color: isActive ? "inherit" : "primary.main",
+                      bgcolor: isActive ? "rgba(255,255,255,0.2)" : "primary.dark",
+                      color: isActive ? "inherit" : "primary.contrastText",
                     }}
                   >
                     {room.isPrivate ? <LockIcon /> : <TagIcon />}

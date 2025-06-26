@@ -75,7 +75,7 @@ export const MessageGroup: React.FC<MessageGroupProps> = ({
     const author = firstMessage.author;
     if (author?.avatar_url) {
       return (
-        <Avatar src={author.avatar_url} sx={{ width: 32, height: 32 }}>
+        <Avatar src={author.avatar_url} sx={{ width: 40, height: 40 }}>
           {author.username?.charAt(0).toUpperCase() || "?"}
         </Avatar>
       );
@@ -93,7 +93,7 @@ export const MessageGroup: React.FC<MessageGroupProps> = ({
       sx={{
         display: "flex",
         justifyContent: getMessageAlignment(),
-        alignItems: "flex-end",
+        alignItems: "flex-start",
         gap: 1,
         mb: 2,
       }}

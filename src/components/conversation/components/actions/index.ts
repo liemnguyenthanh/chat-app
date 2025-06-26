@@ -1,12 +1,9 @@
 // Message Action Components
-export { MessageContextMenu } from './MessageContextMenu';
 export { MessageReactionPicker } from './MessageReactionPicker';
-export { MessageActions } from './MessageActions';
+export { MessageContextMenu } from './MessageContextMenu';
 export { MessageMenu } from './MessageMenu';
 export { ReplyActions } from './ReplyActions';
+export { MessageHoverActions } from './MessageHoverActions';
+export { MessageLikeButton } from './MessageLikeButton';
 
-// Future action components
-// export { MessageActions } from './MessageActions';
-// export { MessageReactionPicker } from './MessageReactionPicker';
-// export { MessageMenu } from './MessageMenu';
-// export { ReplyActions } from './ReplyActions'; 
+// Future action components can be added here 

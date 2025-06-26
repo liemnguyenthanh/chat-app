@@ -1,4 +1,5 @@
 import { useUser } from '@supabase/auth-helpers-react';
+import { chatColors } from '@/themes';
 
 export const useMessageStyling = () => {
   const user = useUser();
@@ -8,11 +9,21 @@ export const useMessageStyling = () => {
   };
 
   const getMessageColor = (authorId: string) => {
-    return authorId === user?.id ? 'primary.main' : 'grey.100';
+    return authorId === user?.id 
+      ? chatColors.userMessage.background 
+      : chatColors.otherMessage.background;
   };
 
   const getTextColor = (authorId: string) => {
-    return authorId === user?.id ? 'white' : 'text.primary';
+    return authorId === user?.id 
+      ? chatColors.userMessage.text 
+      : chatColors.otherMessage.text;
+  };
+
+  const getHoverColor = (authorId: string) => {
+    return authorId === user?.id 
+      ? chatColors.userMessage.backgroundHover 
+      : chatColors.otherMessage.backgroundHover;
   };
 
   const getBorderRadius = (authorId: string, showAvatar: boolean) => {
@@ -40,6 +51,7 @@ export const useMessageStyling = () => {
     getMessageAlignment,
     getMessageColor,
     getTextColor,
+    getHoverColor,
     getBorderRadius,
     isOwnMessage,
   };

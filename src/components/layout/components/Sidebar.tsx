@@ -26,8 +26,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ rooms, loading = false }) => {
           boxSizing: "border-box",
           display: "flex",
           flexDirection: "column",
-          bgcolor: "#f8f9fa",
-          borderRight: "1px solid #e0e0e0",
+          bgcolor: "background.paper",
+          borderRight: "1px solid",
+          borderColor: "divider",
         },
       }}
     >

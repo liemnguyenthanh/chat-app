@@ -1,16 +1,18 @@
-import React, { useState } from 'react';
-import { Box, Paper } from '@mui/material';
-import { Message } from '@/contexts/messages/MessagesContext';
+import React, { useState } from "react";
+import { Box, Paper } from "@mui/material";
+import { Message } from "@/contexts/messages/MessagesContext";
 
 // Import our extracted components
-import { MessageContent } from './messages/MessageContent';
-import { MessageReactions } from './messages/MessageReactions';
-import { MessageReplyPreview } from './messages/MessageReplyPreview';
-import { MessageContextMenu } from './actions/MessageContextMenu';
+import { MessageContent } from "./messages/MessageContent";
+import { MessageReactions } from "./messages/MessageReactions";
+import { MessageReplyPreview } from "./messages/MessageReplyPreview";
+import { MessageContextMenu } from "./actions/MessageContextMenu";
+import { MessageHoverActions } from "./actions/MessageHoverActions";
+import { MessageLikeButton } from "./actions/MessageLikeButton";
 
 // Import our extracted hooks
-import { useMessageActions } from '../hooks/useMessageActions';
-import { useMessageStyling } from '../hooks/useMessageStyling';
+import { useMessageActions } from "../hooks/useMessageActions";
+import { useMessageStyling } from "../hooks/useMessageStyling";
 
 interface MessageBubbleProps {
   message: Message;
@@ -23,7 +25,10 @@ interface MessageBubbleProps {
   onEditingContentChange: (content: string) => void;
   onEditMessage: () => void;
   onCancelEdit: () => void;
-  onMessageMenu: (event: React.MouseEvent<HTMLElement>, messageId: string) => void;
+  onMessageMenu: (
+    event: React.MouseEvent<HTMLElement>,
+    messageId: string
+  ) => void;
   onReaction: (messageId: string, emoji: string) => void;
   onRetryFailedMessage: (tempId: string) => void;
   onRemoveFailedMessage: (tempId: string) => void;
@@ -68,36 +73,33 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     handleSelectMessage,
   } = useMessageActions();
 
-  const {
-    getMessageColor,
-    getTextColor,
-    isOwnMessage,
-  } = useMessageStyling();
+  const { getMessageColor, getTextColor, getHoverColor, isOwnMessage } =
+    useMessageStyling();
 
   const isOwn = isOwnMessage(message.author_id);
 
   const handleMenuItemClick = (action: string) => {
     switch (action) {
-      case 'reply':
+      case "reply":
         onReplyToMessage(message);
         break;
-      case 'copy':
+      case "copy":
         handleCopyMessage(message);
         onCopyMessage?.(message);
         break;
-      case 'pin':
+      case "pin":
         handlePinMessage(message);
         onPinMessage?.(message);
         break;
-      case 'forward':
+      case "forward":
         handleForwardMessage(message);
         onForwardMessage?.(message);
         break;
-      case 'select':
+      case "select":
         handleSelectMessage(message);
         onSelectMessage?.(message);
         break;
-      case 'delete':
+      case "delete":
         onDeleteMessage?.(message);
         break;
     }
@@ -107,76 +109,141 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     onReaction(message.id, emoji);
   };
 
+  const handleMoreActions = (event: React.MouseEvent<HTMLElement>) => {
+    handleContextMenu(event);
+  };
+
+  // Check if message is liked by current user
+  const isLiked =
+    message.reactions?.some(
+      (reaction) => reaction.emoji === "👍" && reaction.users?.length > 0
+    ) || false;
+
   // Get custom border radius for grouped messages
   const getCustomBorderRadius = () => {
     const baseRadius = 18;
     const tightRadius = 4;
-    
+
     if (isOwn) {
-      return `${baseRadius}px ${baseRadius}px ${isLast ? baseRadius : tightRadius}px ${baseRadius}px`;
+      return `${baseRadius}px ${baseRadius}px ${
+        isLast ? baseRadius : tightRadius
+      }px ${baseRadius}px`;
     } else {
-      return `${baseRadius}px ${baseRadius}px ${baseRadius}px ${isLast ? baseRadius : tightRadius}px`;
+      return `${baseRadius}px ${baseRadius}px ${baseRadius}px ${
+        isLast ? baseRadius : tightRadius
+      }px`;
     }
   };
 
   return (
-    <Box sx={{ position: 'relative' }}>
+    <Box
+      sx={{
+        position: "relative",
+        mb: 0.5,
+      }}
+    >
       {/* Reply Preview */}
       {message.reply_data && (
-        <Box sx={{ mb: 1 }}>
+        <Box sx={{ mb: -1 }}>
           <MessageReplyPreview replyData={message.reply_data} />
         </Box>
       )}
 
-      {/* Main Message Bubble */}
-      <Paper
+      {/* Message Container with Bubble and Actions */}
+      <Box
         sx={{
-          p: 1.5,
-          bgcolor: getMessageColor(message.author_id),
-          color: getTextColor(message.author_id),
-          borderRadius: getCustomBorderRadius(),
-          position: 'relative',
-          border: message.failed ? '2px solid' : 'none',
-          borderColor: message.failed ? 'error.main' : 'transparent',
-          opacity: message.sending ? 0.7 : 1,
-          transition: 'all 0.2s ease-in-out',
-          ...(message.sending && {
-            animation: 'pulse 2s infinite'
-          }),
-          '&:hover': {
-            transform: 'translateY(-1px)',
-            boxShadow: (theme) => theme.shadows[2],
-          }
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          justifyContent: isOwn ? "flex-end" : "flex-start",
         }}
         onMouseEnter={() => setIsHovering(true)}
         onMouseLeave={() => setIsHovering(false)}
-        onContextMenu={handleContextMenu}
       >
-        {/* Message Content */}
-        <MessageContent
-          content={message.content || ''}
-          isEditing={isEditing}
-          editingContent={editingContent}
-          messageId={message.id}
-          failedMessages={failedMessages}
-          sendingMessageId={sendingMessageId}
-          onEditingContentChange={onEditingContentChange}
-          onEditMessage={onEditMessage}
-          onCancelEdit={onCancelEdit}
-          onContextMenu={handleContextMenu}
-          onRetryFailedMessage={onRetryFailedMessage}
-          onRemoveFailedMessage={onRemoveFailedMessage}
-        />
-      </Paper>
-      
-      {/* Message Reactions */}
-      <MessageReactions
-        reactions={message.reactions || []}
-        isOwnMessage={isOwn}
-        onReaction={handleReactionClick}
-      />
+        {/* Action Icons for own messages - positioned on the LEFT side */}
+        {isOwn && (
+          <MessageHoverActions
+            message={message}
+            show={isHovering}
+            onReply={onReplyToMessage}
+            onForward={onForwardMessage || (() => {})}
+            onMoreActions={handleMoreActions}
+            isOwnMessage={isOwn}
+          />
+        )}
 
-      {/* Context Menu */}
+        {/* Message Bubble */}
+        <Box sx={{ position: "relative", maxWidth: "70%" }}>
+          <Paper
+            sx={{
+              p: 1.5,
+              background: getMessageColor(message.author_id),
+              color: getTextColor(message.author_id),
+              borderRadius: getCustomBorderRadius(),
+              position: "relative",
+              border: message.failed ? "2px solid" : "none",
+              borderColor: message.failed ? "error.main" : "transparent",
+              opacity: message.sending ? 0.7 : 1,
+              transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+              backdropFilter: "blur(10px)",
+              ...(message.sending && {
+                animation: "pulse 2s infinite",
+              }),
+              "&:hover": {
+                background: getHoverColor(message.author_id),
+                transform: "translateY(-2px) scale(1.02)",
+                boxShadow: "0 8px 25px rgba(0, 0, 0, 0.3)",
+              },
+            }}
+          >
+            {/* Message Content */}
+            <MessageContent
+              content={message.content || ""}
+              isEditing={isEditing}
+              editingContent={editingContent}
+              messageId={message.id}
+              failedMessages={failedMessages}
+              sendingMessageId={sendingMessageId}
+              onEditingContentChange={onEditingContentChange}
+              onEditMessage={onEditMessage}
+              onCancelEdit={onCancelEdit}
+              onContextMenu={handleContextMenu}
+              onRetryFailedMessage={onRetryFailedMessage}
+              onRemoveFailedMessage={onRemoveFailedMessage}
+            />
+
+            {/* Like Button - positioned inside bubble at bottom-right */}
+            <MessageLikeButton
+              message={message}
+              show={isHovering}
+              onReaction={handleReactionClick}
+              isLiked={isLiked}
+              isOwnMessage={isOwn}
+            />
+          </Paper>
+
+          {/* Message Reactions - positioned below bubble */}
+          <MessageReactions
+            reactions={message.reactions || []}
+            isOwnMessage={isOwn}
+            onReaction={handleReactionClick}
+          />
+        </Box>
+
+        {/* Action Icons for other messages - positioned on the RIGHT side */}
+        {!isOwn && (
+          <MessageHoverActions
+            message={message}
+            show={isHovering}
+            onReply={onReplyToMessage}
+            onForward={onForwardMessage || (() => {})}
+            onMoreActions={handleMoreActions}
+            isOwnMessage={isOwn}
+          />
+        )}
+      </Box>
+
+      {/* Context Menu for More Actions */}
       <MessageContextMenu
         anchorEl={contextMenuAnchor}
         open={Boolean(contextMenuAnchor)}
@@ -186,4 +253,4 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
       />
     </Box>
   );
-}; 
+};

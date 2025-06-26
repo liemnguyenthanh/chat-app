@@ -71,27 +71,21 @@ export const useCreateRoomMutation = () => {
           name,
           description,
           is_private: isPrivate,
-          created_by: user.id,
+          owner_id: user.id,
         })
         .select()
         .single();
 
       if (error) {
+        console.error('Error creating group:', error);
         throw new Error(error.message);
       }
 
-      // Add user as member
-      const { error: memberError } = await supabase
-        .from('group_members')
-        .insert({
-          group_id: room.id,
-          user_id: user.id,
-          role: 'admin',
-        });
-
-      if (memberError) {
-        throw new Error(memberError.message);
-      }
+      // The trigger 'handle_new_group' will automatically:
+      // - Create group_settings
+      // - Add user as admin member 
+      // - Log activity
+      // So we don't need to manually insert into group_members
 
       return {
         id: room.id,
@@ -106,6 +100,9 @@ export const useCreateRoomMutation = () => {
     onSuccess: () => {
       // Invalidate and refetch rooms query when a new room is created
       queryClient.invalidateQueries({ queryKey: roomsQueryKeys.all });
+    },
+    onError: (error) => {
+      console.error('Room creation failed:', error);
     },
   });
 };

@@ -7,7 +7,7 @@ interface MessageLikeButtonProps {
   message: Message;
   show: boolean;
   onReaction: (emoji: string) => void;
-  isLiked?: boolean;
+  isReacted?: boolean;
   isOwnMessage?: boolean;
 }
 const reactions = ["👍", "❤️", "😂", "😮", "😢", "😡"];
@@ -16,7 +16,7 @@ export const MessageLikeButton: React.FC<MessageLikeButtonProps> = ({
   message,
   show,
   onReaction,
-  isLiked = false,
+  isReacted = false,
   isOwnMessage = false,
 }) => {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -56,15 +56,8 @@ export const MessageLikeButton: React.FC<MessageLikeButtonProps> = ({
   return (
     <Box sx={{ position: "relative" }}>
       <Fade in={show}>
-        <Box
-          sx={{
-            position: "absolute",
-            bottom: -20,
-            right: -16,
-            zIndex: 10,
-          }}
-        >
-          <Tooltip title={isLiked ? "Unlike" : "Like"} arrow>
+        <Box>
+          <Tooltip title={isReacted ? "Unlike" : "Like"} arrow>
             <Box
               sx={{
                 width: 24,
@@ -85,7 +78,7 @@ export const MessageLikeButton: React.FC<MessageLikeButtonProps> = ({
               onMouseEnter={handleLikeHover}
               onMouseLeave={handleLikeLeave}
             >
-              {isLiked ? (
+              {isReacted ? (
                 <ThumbUp sx={{ fontSize: 12, color: "#1976d2" }} />
               ) : (
                 <ThumbUpOutlined sx={{ fontSize: 12, color: "white" }} />

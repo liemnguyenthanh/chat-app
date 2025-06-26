@@ -1,6 +1,6 @@
-import React from 'react';
-import { Box, Chip } from '@mui/material';
-import { useUser } from '@supabase/auth-helpers-react';
+import React from "react";
+import { Box, Chip, Typography } from "@mui/material";
+import { useUser } from "@supabase/auth-helpers-react";
 
 interface Reaction {
   emoji: string;
@@ -26,32 +26,35 @@ export const MessageReactions: React.FC<MessageReactionsProps> = ({
   }
 
   return (
-    <Box sx={{ 
-      display: 'flex', 
-      gap: 0.5, 
-      mt: 0.5, 
-      flexWrap: 'wrap',
-      justifyContent: isOwnMessage ? 'flex-end' : 'flex-start'
-    }}>
-      {reactions.map((reaction) => (
-        <Chip
+    <Box
+      sx={{
+        display: "flex",
+        gap: 0.5,
+        border: 1,
+        borderColor: "divider",
+        alignItems: "center",
+        borderRadius: 1,
+        p: 0.5,
+        backgroundColor: "rgba(0, 0, 0, 0.8)",
+        justifyContent: isOwnMessage ? "flex-end" : "flex-start",
+        width: "fit-content",
+      }}
+    >
+      {reactions.slice(0, 3).map((reaction) => (
+        <Box
           key={reaction.emoji}
-          label={`${reaction.emoji} ${reaction.count}`}
-          size="small"
-          variant={reaction.users.includes(user?.id || '') ? 'filled' : 'outlined'}
-          onClick={() => onReaction(reaction.emoji)}
-          sx={{ 
-            height: 22, 
-            fontSize: '0.7rem',
-            '& .MuiChip-label': { px: 1 },
-            transition: 'all 0.2s ease-in-out',
-            '&:hover': {
-              transform: 'scale(1.1)',
-              boxShadow: (theme) => theme.shadows[2],
-            }
+          sx={{
+            borderRadius: "50%",
+            fontSize: "12px",
+            cursor: "pointer",
           }}
-        />
+        >
+          {reaction.emoji}
+        </Box>
       ))}
+      <Typography fontSize={12} color="text.primary">
+        {reactions.reduce((sum, reaction) => sum + reaction.count, 0)}
+      </Typography>
     </Box>
   );
-}; 
+};

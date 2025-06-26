@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Box, Paper } from "@mui/material";
+import { Box, Paper, Stack } from "@mui/material";
 import { Message } from "@/contexts/messages/MessagesContext";
 
 // Import our extracted components
@@ -114,10 +114,8 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   };
 
   // Check if message is liked by current user
-  const isLiked =
-    message.reactions?.some(
-      (reaction) => reaction.emoji === "👍" && reaction.users?.length > 0
-    ) || false;
+  const isReacted =
+    message.reactions?.some((reaction) => reaction.users?.length > 0) || false;
 
   // Get custom border radius for grouped messages
   const getCustomBorderRadius = () => {
@@ -211,23 +209,31 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
               onRetryFailedMessage={onRetryFailedMessage}
               onRemoveFailedMessage={onRemoveFailedMessage}
             />
-
-            {/* Like Button - positioned inside bubble at bottom-right */}
+          </Paper>
+          <Stack
+            sx={{
+              position: "absolute",
+              bottom: -15,
+              right: 0,
+              zIndex: 10,
+            }}
+            direction="row"
+            gap={0.5}
+            alignItems="center"
+          >
+            <MessageReactions
+              reactions={message.reactions || []}
+              isOwnMessage={isOwn}
+              onReaction={handleReactionClick}
+            />
             <MessageLikeButton
               message={message}
-              show={isHovering}
+              show={isHovering || isReacted}
               onReaction={handleReactionClick}
-              isLiked={isLiked}
+              isReacted={isReacted}
               isOwnMessage={isOwn}
             />
-          </Paper>
-
-          {/* Message Reactions - positioned below bubble */}
-          <MessageReactions
-            reactions={message.reactions || []}
-            isOwnMessage={isOwn}
-            onReaction={handleReactionClick}
-          />
+          </Stack>
         </Box>
 
         {/* Action Icons for other messages - positioned on the RIGHT side */}
